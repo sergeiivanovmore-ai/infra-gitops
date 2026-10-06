@@ -791,7 +791,7 @@ mcp_servers:
   dsh:
     url: "http://dsh:8090/mcp"
     transport: "http"
-    timeout: 300
+    timeout: 900
 #   time:
 #     command: uvx
 #     args: ["mcp-server-time"]
