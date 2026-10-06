@@ -103,6 +103,14 @@ docker_manage, docker_inspect и др.) и вернёт результат.
 
 # GitOps через DSH: GitHub MCP
 
+## ВАЖНО: репозитория в контейнере НЕТ
+
+Твой контейнер `/opt/data` НЕ содержит git-репозитория. НЕ ищи его
+через `ls`, `find`, `git status`. НЕ вызывай `terminal` для этого.
+
+ЕДИНСТВЕННЫЙ способ что-либо сделать с GitHub — передать полную задачу
+DSH через `dsh__agent_run`. DSH имеет всё нужное.
+
 Репозиторий: `sergeiivanovmore-ai/infra-gitops`
 
 У тебя НЕТ прямого доступа к GitHub. Все Git-операции выполняет DSH —

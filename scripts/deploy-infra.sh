@@ -67,6 +67,22 @@ done
 chown -R 10000:10000 /opt/docker/hermes/data /opt/docker/hermes-sysadmin/data
 chown -R 10001:10001 /opt/docker/dsh/data/profiles/web
 
+# ---- Ensure tirith exists in gateway (copy from sysadmin if missing) ----
+if ! docker exec hermes-gateway test -x /opt/data/bin/tirith 2>/dev/null; then
+  echo "  restoring tirith in gateway..."
+  if docker exec hermes-sysadmin test -x /opt/data/bin/tirith 2>/dev/null; then
+    docker cp hermes-sysadmin:/opt/data/bin/tirith /tmp/tirith.gw 2>/dev/null
+    docker cp /tmp/tirith.gw hermes-gateway:/opt/data/bin/tirith 2>/dev/null
+    docker exec -u root hermes-gateway bash -lc '
+      chown 10000:10000 /opt/data/bin/tirith
+      chmod 755 /opt/data/bin/tirith
+    ' 2>/dev/null
+    rm -f /tmp/tirith.gw
+  else
+    echo "  WARN: tirith missing in both containers"
+  fi
+fi
+
 # ---- Restart ----
 cd /opt/docker/hermes && docker compose up -d
 cd /opt/docker/hermes-sysadmin && docker compose up -d
