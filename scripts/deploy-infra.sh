@@ -1,6 +1,6 @@
 #!/bin/bash
 # Deploy infrastructure from Git to running containers.
-# This is the ONLY command GitHub Actions can run on the VPS.
+# Runs as root via sudo (forced command). Copies only repo-managed files.
 set -euo pipefail
 
 REPO_DIR="/opt/infra-gitops"
@@ -13,36 +13,61 @@ cd "$REPO_DIR"
 git fetch origin main
 git reset --hard origin/main
 
-# Синхронизация Hermes-профилей (только авторские файлы)
-rsync -a --delete \
-  --exclude='memories/' --exclude='sessions/' --exclude='logs/' \
-  --exclude='state.db*' --exclude='.env' --exclude='auth.json' \
-  --exclude='workspace/' --exclude='cron/output/' \
-  --exclude='skills/' \
-  "$REPO_DIR/hermes-gateway/" /opt/docker/hermes/data/
+# ---- hermes-gateway ----
+GW_SRC="$REPO_DIR/hermes-gateway"
+GW_DST="/opt/docker/hermes/data"
 
-rsync -a --delete \
-  --exclude='memories/' --exclude='sessions/' --exclude='logs/' \
-  --exclude='state.db*' --exclude='.env' --exclude='auth.json' \
-  --exclude='workspace/' --exclude='cron/output/' \
-  --exclude='skills/' \
-  "$REPO_DIR/hermes-sysadmin/" /opt/docker/hermes-sysadmin/data/
+for f in SOUL.md config.yaml distribution.yaml AGENTS.md; do
+  if [ -f "$GW_SRC/$f" ]; then
+    cp -f "$GW_SRC/$f" "$GW_DST/$f"
+    echo "  copied: $f -> $GW_DST/"
+  fi
+done
 
-# Skills — только кастомные (bundled и marketplace не трогаем)
-rsync -a "$REPO_DIR/hermes-gateway/skills/" /opt/docker/hermes/data/skills/ 2>/dev/null || true
+# cron/jobs.json (только файл)
+mkdir -p "$GW_DST/cron"
+if [ -f "$GW_SRC/cron/jobs.json" ]; then
+  cp -f "$GW_SRC/cron/jobs.json" "$GW_DST/cron/jobs.json"
+  echo "  copied: cron/jobs.json"
+fi
 
-# DSH: 4 файла
-cp "$REPO_DIR/dsh/package.json"        /opt/docker/dsh/data/profiles/web/
-cp "$REPO_DIR/dsh/pnpm-lock.yaml"      /opt/docker/dsh/data/profiles/web/
-cp "$REPO_DIR/dsh/pnpm-workspace.yaml" /opt/docker/dsh/data/profiles/web/
-[ -f "$REPO_DIR/dsh/cordis.patch.yml" ] && \
-  cp "$REPO_DIR/dsh/cordis.patch.yml"  /opt/docker/dsh/data/profiles/web/
+# кастомные skills (без --delete)
+if [ -d "$GW_SRC/skills" ]; then
+  rsync -a "$GW_SRC/skills/" "$GW_DST/skills/"
+  echo "  synced: skills/"
+fi
 
-# Владельцы
+# ---- hermes-sysadmin ----
+SA_SRC="$REPO_DIR/hermes-sysadmin"
+SA_DST="/opt/docker/hermes-sysadmin/data"
+
+for f in SOUL.md config.yaml distribution.yaml ARCHITECTURE.md AGENTS.md; do
+  if [ -f "$SA_SRC/$f" ]; then
+    cp -f "$SA_SRC/$f" "$SA_DST/$f"
+    echo "  copied: $f -> $SA_DST/"
+  fi
+done
+
+mkdir -p "$SA_DST/cron"
+if [ -f "$SA_SRC/cron/jobs.json" ]; then
+  cp -f "$SA_SRC/cron/jobs.json" "$SA_DST/cron/jobs.json"
+  echo "  copied: cron/jobs.json"
+fi
+
+# ---- DSH ----
+DSH_DST="/opt/docker/dsh/data/profiles/web"
+for f in package.json pnpm-lock.yaml pnpm-workspace.yaml cordis.patch.yml cordis.yml; do
+  if [ -f "$REPO_DIR/dsh/$f" ]; then
+    cp -f "$REPO_DIR/dsh/$f" "$DSH_DST/$f"
+    echo "  copied: $f -> $DSH_DST/"
+  fi
+done
+
+# ---- Ownership ----
 chown -R 10000:10000 /opt/docker/hermes/data /opt/docker/hermes-sysadmin/data
 chown -R 10001:10001 /opt/docker/dsh/data/profiles/web
 
-# Перезапуск
+# ---- Restart ----
 cd /opt/docker/hermes && docker compose up -d
 cd /opt/docker/hermes-sysadmin && docker compose up -d
 cd /opt/docker/dsh && docker compose up -d
