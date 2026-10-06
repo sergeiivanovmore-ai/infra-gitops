@@ -1,0 +1,5 @@
+name: hermes-sysadmin
+version: "1.0.0"
+description: "System administrator agent (VPS, Docker, DSH)"
+hermes_requires: ">=0.21.0"
+author: "Viktor"

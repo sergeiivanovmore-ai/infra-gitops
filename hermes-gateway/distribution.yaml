@@ -1,0 +1,5 @@
+name: hermes-gateway
+version: "1.0.0"
+description: "Hermes orchestrator, Telegram gateway"
+hermes_requires: ">=0.21.0"
+author: "Viktor"

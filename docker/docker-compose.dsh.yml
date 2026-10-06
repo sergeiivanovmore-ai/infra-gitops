@@ -1,0 +1,27 @@
+services:
+  dsh:
+    image: stefankhor/dsh-docker:latest
+    container_name: dsh
+    restart: unless-stopped
+    group_add:
+      - "999"
+    ports:
+      - "127.0.0.1:${DSH_WEB_PORT:-3080}:3080"
+    volumes:
+      - ./data:/home/dsh/.dsh
+      - ./workspace:/home/dsh/workspace
+      - /usr/bin/docker:/usr/local/bin/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - .env
+    networks:
+      - mcp-network
+    healthcheck:
+      disable: true
+
+volumes:
+  dsh-home:
+
+networks:
+  mcp-network:
+    external: true

@@ -1,0 +1,37 @@
+# Hermes secrets & runtime — NEVER commit
+auth.json
+.env
+.env.*
+memories/
+sessions/
+state.db*
+logs/
+workspace/
+plans/
+home/
+*_cache/
+local/
+
+# DSH runtime & credentials
+dsh/**/node_modules/
+dsh/.credentials.yaml
+dsh/sessions/
+dsh/storages/
+
+# Docker
+*.log
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Backup files
+*.save
+*.bak
+*.swp
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db

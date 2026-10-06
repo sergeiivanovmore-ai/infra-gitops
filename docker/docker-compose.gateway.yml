@@ -1,0 +1,21 @@
+services:
+  hermes:
+    image: nousresearch/hermes-agent:v2026.9.24 # Официальный образ
+    container_name: hermes-gateway
+    restart: unless-stopped
+    command: gateway run # Запуск шлюза для Telegram и т.д.
+    env_file:
+      - ./data/.env
+    ports:
+      - "127.0.0.1:8642:8642" # Порты для веб-интерфейса (можно убрать)
+      - "127.0.0.1:9119:9119" # Порт для вэб интерфейса настройки
+    group_add:
+      - "999"
+    volumes:
+      - ./data:/opt/data # Монтирование папки с данными
+#      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - mcp-network
+networks:
+  mcp-network:
+    external: true   # подключаемся к той же внешней сети

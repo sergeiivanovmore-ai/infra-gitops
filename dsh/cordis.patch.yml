@@ -1,0 +1,13 @@
+# Id-targeted config override for the bundled dsh-carrot-on-a-stick entry.
+# Do NOT use "insert:" here — that creates a duplicate entry.
+- id: dsh-carrot-on-a-stick
+  config:
+    http: true
+    port: 8090
+    host: 0.0.0.0
+    allowedHosts:
+      - "dsh"
+      - "dsh:8090"
+      - "hermes-sysadmin"
+      - "hermes-gateway"
+      - "172.26.0.0/16"

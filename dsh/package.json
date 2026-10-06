@@ -1,0 +1,20 @@
+{
+  "name": "dsh-profile-web",
+  "private": true,
+  "dependencies": {
+    "@deepseek-ai/node-addon-landlock-run": "^0.1.1",
+    "@stardustlc/dsh-docker": "^0.3.4",
+    "dsh-carrot-on-a-stick": "file:../../plugins/dsh-carrot"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "dsh-carrot-on-a-stick",
+        "@stardustlc/dsh-docker"
+      ],
+      "patchReload": "live"
+    }
+  }
+}
