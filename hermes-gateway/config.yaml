@@ -1,6 +1,6 @@
 model:
   provider: openrouter
-  default: stealth/space-bunny-alpha
+  default: deepseek/deepseek-v4.1-flash
 fallback_providers:
   - provider: openrouter
     model: deepseek/deepseek-v4.1-flash
@@ -561,7 +561,7 @@ mcp_servers:
     url: http://dsh:8090/mcp
     transport: streamable-http
     enabled: true
-    timeout: 600
+    timeout: 1200
     connect_timeout: 30
 messaging:
   email:
@@ -603,7 +603,7 @@ a2a_agents:
     auth:
       type: bearer
       token: "${env:A2A_BEARER_TOKEN}"
-    timeout: 300
+    timeout: 900
     capabilities: [sysadmin, server_management, monitoring, mail, yandex_metrika]
 
 platforms:
@@ -644,3 +644,7 @@ known_builtin_toolsets:
     - web
     - x_search
     - yuanbao
+
+timeouts:
+  mcp:
+    tool_call: 900
