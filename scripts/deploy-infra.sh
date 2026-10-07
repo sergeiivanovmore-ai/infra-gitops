@@ -1,4 +1,3 @@
-cat > /usr/local/bin/deploy-infra.sh <<'SCRIPT_EOF'
 #!/bin/bash
 # Deploy infrastructure from Git to running containers.
 # Runs as root via sudo (forced command). Copies only repo-managed files.
@@ -117,6 +116,3 @@ cd /opt/docker/hermes-sysadmin && docker compose up -d
 cd /opt/docker/dsh && docker compose up -d --build
 
 echo "=== Deploy completed at $(date -Iseconds) ==="
-SCRIPT_EOF
-
-chmod 755 /usr/local/bin/deploy-infra.sh
