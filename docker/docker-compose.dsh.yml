@@ -1,6 +1,9 @@
 services:
   dsh:
-    image: stefankhor/dsh-docker:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.dsh
+    image: dsh-node24:latest
     container_name: dsh
     restart: unless-stopped
     group_add:
@@ -18,9 +21,6 @@ services:
       - mcp-network
     healthcheck:
       disable: true
-
-volumes:
-  dsh-home:
 
 networks:
   mcp-network:
