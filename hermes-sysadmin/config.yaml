@@ -1152,3 +1152,21 @@ security:
     shared_files: []
   acked_advisories: []
   allow_lazy_installs: false    # ← критично
+
+
+
+# ================================================================
+# Защита файлов: только разрешённые пути для file tools
+# Критические файлы GitOps (SOUL.md, config.yaml, .env, auth.json)
+# физически недоступны для read_file / write_file / patch / search_files.
+# ВНИМАНИЕ: не защищает от terminal и execute_code — они отключаются
+# отдельно через agent.disabled_toolsets (следующий PR).
+# ================================================================
+profile_fs_allowlist:
+  default:
+    - /opt/data/workspace
+    - /opt/data/scripts
+    - /opt/data/memories
+    - /opt/data/logs
+    - /opt/data/cron
+    - /tmp
