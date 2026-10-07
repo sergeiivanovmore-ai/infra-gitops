@@ -13,7 +13,9 @@ cd "$REPO_DIR"
 git fetch origin main
 git reset --hard origin/main
 
-# ---- hermes-gateway ----
+# ================================================================
+# hermes-gateway
+# ================================================================
 GW_SRC="$REPO_DIR/hermes-gateway"
 GW_DST="/opt/docker/hermes/data"
 
@@ -24,20 +26,20 @@ for f in SOUL.md config.yaml distribution.yaml AGENTS.md; do
   fi
 done
 
-# cron/jobs.json (только файл)
 mkdir -p "$GW_DST/cron"
 if [ -f "$GW_SRC/cron/jobs.json" ]; then
   cp -f "$GW_SRC/cron/jobs.json" "$GW_DST/cron/jobs.json"
   echo "  copied: cron/jobs.json"
 fi
 
-# кастомные skills (без --delete)
 if [ -d "$GW_SRC/skills" ]; then
-  rsync -a "$GW_SRC/skills/" "$GW_DST/skills/"
-  echo "  synced: skills/"
+  rsync -a "$GW_SRC/skills/" "$GW_DST/skills/" 2>/dev/null && \
+    echo "  synced: skills/"
 fi
 
-# ---- hermes-sysadmin ----
+# ================================================================
+# hermes-sysadmin
+# ================================================================
 SA_SRC="$REPO_DIR/hermes-sysadmin"
 SA_DST="/opt/docker/hermes-sysadmin/data"
 
@@ -54,7 +56,9 @@ if [ -f "$SA_SRC/cron/jobs.json" ]; then
   echo "  copied: cron/jobs.json"
 fi
 
-# ---- DSH ----
+# ================================================================
+# DSH
+# ================================================================
 DSH_DST="/opt/docker/dsh/data/profiles/web"
 for f in package.json pnpm-lock.yaml pnpm-workspace.yaml cordis.patch.yml cordis.yml; do
   if [ -f "$REPO_DIR/dsh/$f" ]; then
@@ -63,11 +67,22 @@ for f in package.json pnpm-lock.yaml pnpm-workspace.yaml cordis.patch.yml cordis
   fi
 done
 
-# ---- Ownership ----
+# Установить зависимости DSH из обновлённого package.json
+echo "  syncing DSH profile web (pnpm install)..."
+docker exec -u dsh dsh sh -c '
+  cd /home/dsh/.dsh/profiles/web && \
+pnpm install 2>&1 | tail -3
+' || echo "  WARN: pnpm install failed in DSH web profile"
+
+# ================================================================
+# Ownership
+# ================================================================
 chown -R 10000:10000 /opt/docker/hermes/data /opt/docker/hermes-sysadmin/data
 chown -R 10001:10001 /opt/docker/dsh/data/profiles/web
 
-# ---- Ensure tirith exists in gateway (copy from sysadmin if missing) ----
+# ================================================================
+# Ensure tirith exists in gateway (copy from sysadmin if missing)
+# ================================================================
 if ! docker exec hermes-gateway test -x /opt/data/bin/tirith 2>/dev/null; then
   echo "  restoring tirith in gateway..."
   if docker exec hermes-sysadmin test -x /opt/data/bin/tirith 2>/dev/null; then
@@ -83,7 +98,9 @@ if ! docker exec hermes-gateway test -x /opt/data/bin/tirith 2>/dev/null; then
   fi
 fi
 
-# ---- Restart ----
+# ================================================================
+# Restart
+# ================================================================
 cd /opt/docker/hermes && docker compose up -d
 cd /opt/docker/hermes-sysadmin && docker compose up -d
 cd /opt/docker/dsh && docker compose up -d

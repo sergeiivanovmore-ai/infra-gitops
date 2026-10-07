@@ -11,3 +11,13 @@
       - "hermes-sysadmin"
       - "hermes-gateway"
       - "172.26.0.0/16"
+
+- id: mcp-github
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    serverName: github
+    transport: streamable-http
+    url: https://api.githubcopilot.com/mcp/
+    headers:
+      Authorization: !!js '`Bearer ${process.env.GITHUB_TOKEN}`'
+    failOnStartupError: false
