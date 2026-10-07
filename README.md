@@ -14,3 +14,4 @@
 ## Деплой
 
 Merge PR в `main` → GitHub Actions → SSH на VPS → `deploy-infra.sh`.
+# test direct push Wed Oct  7 12:39:02 PM UTC 2026
