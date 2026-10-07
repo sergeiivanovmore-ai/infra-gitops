@@ -156,3 +156,4 @@ DSH через `dsh__agent_run`. DSH имеет всё нужное.
 
 DSH видит токен в credential center. Никакие git/gh команды вводить не нужно —
 только вызовы `mcp__github__*`.
+<!-- Node24 works: 2026-10-07 -->
