@@ -1,0 +1,24 @@
+FROM stefankhor/dsh-docker:latest
+
+USER root
+
+# Node.js 24 LTS через NodeSource (ставится в /usr/bin/node)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates gnupg && \
+    curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Заменяем ТОЛЬКО бинарник node — npm/npx/pnpm/yarn/corepack НЕ трогаем,
+# они продолжат работать через новый Node через shebang #!/usr/bin/env node
+RUN rm -f /usr/local/bin/node && \
+    ln -sf /usr/bin/node /usr/local/bin/node
+
+# Проверка: Node v24 + pnpm работает на нём. Если нет — сборка упадёт.
+RUN node --version | grep -q "v24" && \
+    echo "✅ Node: $(node --version)" && \
+    pnpm --version && \
+    echo "✅ pnpm works on Node $(node --version)" || \
+    (echo "❌ ERROR: Node is not v24 or pnpm broken" && exit 1)
+
+USER dsh
