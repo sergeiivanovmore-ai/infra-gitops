@@ -1,3 +1,4 @@
+cat > /usr/local/bin/deploy-infra.sh <<'SCRIPT_EOF'
 #!/bin/bash
 # Deploy infrastructure from Git to running containers.
 # Runs as root via sudo (forced command). Copies only repo-managed files.
@@ -16,6 +17,9 @@ git reset --hard origin/main
 # ================================================================
 # hermes-gateway
 # ================================================================
+cp -f "$REPO_DIR/docker/docker-compose.gateway.yml" /opt/docker/hermes/docker-compose.yml
+echo "  copied: docker-compose.gateway.yml -> /opt/docker/hermes/"
+
 GW_SRC="$REPO_DIR/hermes-gateway"
 GW_DST="/opt/docker/hermes/data"
 
@@ -40,6 +44,9 @@ fi
 # ================================================================
 # hermes-sysadmin
 # ================================================================
+cp -f "$REPO_DIR/docker/docker-compose.sysadmin.yml" /opt/docker/hermes-sysadmin/docker-compose.yml
+echo "  copied: docker-compose.sysadmin.yml -> /opt/docker/hermes-sysadmin/"
+
 SA_SRC="$REPO_DIR/hermes-sysadmin"
 SA_DST="/opt/docker/hermes-sysadmin/data"
 
@@ -59,6 +66,10 @@ fi
 # ================================================================
 # DSH
 # ================================================================
+cp -f "$REPO_DIR/docker/docker-compose.dsh.yml" /opt/docker/dsh/docker-compose.yml
+cp -f "$REPO_DIR/docker/Dockerfile.dsh"          /opt/docker/dsh/Dockerfile.dsh
+echo "  copied: docker-compose.dsh.yml + Dockerfile.dsh -> /opt/docker/dsh/"
+
 DSH_DST="/opt/docker/dsh/data/profiles/web"
 for f in package.json pnpm-lock.yaml pnpm-workspace.yaml cordis.patch.yml cordis.yml; do
   if [ -f "$REPO_DIR/dsh/$f" ]; then
@@ -71,7 +82,7 @@ done
 echo "  syncing DSH profile web (pnpm install)..."
 docker exec -u dsh dsh sh -c '
   cd /home/dsh/.dsh/profiles/web && \
-pnpm install 2>&1 | tail -3
+  pnpm install 2>&1 | tail -3
 ' || echo "  WARN: pnpm install failed in DSH web profile"
 
 # ================================================================
@@ -103,6 +114,9 @@ fi
 # ================================================================
 cd /opt/docker/hermes && docker compose up -d
 cd /opt/docker/hermes-sysadmin && docker compose up -d
-cd /opt/docker/dsh && docker compose up -d
+cd /opt/docker/dsh && docker compose up -d --build
 
 echo "=== Deploy completed at $(date -Iseconds) ==="
+SCRIPT_EOF
+
+chmod 755 /usr/local/bin/deploy-infra.sh
