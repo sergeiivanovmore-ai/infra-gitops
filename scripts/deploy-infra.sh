@@ -12,6 +12,7 @@ echo "=== Deploy started at $(date -Iseconds) ==="
 cd "$REPO_DIR"
 git fetch origin main
 git reset --hard origin/main
+/usr/local/bin/audit-check.sh || exit 1
 
 # ================================================================
 # hermes-gateway
