@@ -10,6 +10,9 @@ services:
     env_file:
       - ./data/.env
 
+    environment:
+      HERMES_WRITE_SAFE_ROOT: /opt/data/workspace:/opt/data/scripts:/opt/data/memories:/opt/data/logs:/opt/data/cron:/tmp
+
     ports:
       - "127.0.0.1:8643:8642"   # gateway (не конфликтует с hermes-gateway:8642)
       - "127.0.0.1:9120:9119"   # dashboard (не конфликтует с 9119)

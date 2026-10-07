@@ -6,6 +6,11 @@ services:
     command: gateway run # Запуск шлюза для Telegram и т.д.
     env_file:
       - ./data/.env
+
+    environment:
+      HERMES_WRITE_SAFE_ROOT: /opt/data/workspace:/opt/data/skills:/opt/data/cron:/opt/data/logs:/tmp
+
+
     ports:
       - "127.0.0.1:8642:8642" # Порты для веб-интерфейса (можно убрать)
       - "127.0.0.1:9119:9119" # Порт для вэб интерфейса настройки
