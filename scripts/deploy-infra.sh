@@ -12,6 +12,14 @@ echo "=== Deploy started at $(date -Iseconds) ==="
 cd "$REPO_DIR"
 git fetch origin main
 git reset --hard origin/main
+
+# ── Self-install: обновляем хостовую копию из репо ──────────────
+if [ -f "$REPO_DIR/scripts/deploy-infra.sh" ]; then
+  cp -f "$REPO_DIR/scripts/deploy-infra.sh" /usr/local/bin/deploy-infra.sh
+  chmod 755 /usr/local/bin/deploy-infra.sh
+  echo "  self-install: deploy-infra.sh updated from repo (takes effect next deploy)"
+fi
+
 /usr/local/bin/audit-check.sh || exit 1
 
 # ================================================================
@@ -112,7 +120,7 @@ fi
 # ================================================================
 # Restart
 # ================================================================
-cd /opt/docker/hermes && docker compose up -d
+cd /opt/docker/hermes && docker compose up -d --force-recreate
 cd /opt/docker/hermes-sysadmin && docker compose up -d
 cd /opt/docker/dsh && docker compose up -d --build
 
