@@ -14,3 +14,4 @@
 ## Деплой
 
 Merge PR в `main` → GitHub Actions → SSH на VPS → `deploy-infra.sh`.
+<- id: test 2026-10-08T18:39:40+00:00 -->
