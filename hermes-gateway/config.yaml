@@ -543,7 +543,7 @@ mcp_servers:
     args:
       - -y
       - '@modelcontextprotocol/server-filesystem'
-      - /opt/data
+      - /opt/data/workspace
   searxng-search:
     command: npx
     args:
