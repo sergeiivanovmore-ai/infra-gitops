@@ -121,6 +121,14 @@ fi
 # Restart
 # ================================================================
 cd /opt/docker/hermes && docker compose up -d --force-recreate
+
+# ── Ensure A2A toolset enabled (runtime state, not in config.yaml) ──
+echo "  ensuring a2a toolset for telegram..."
+sleep 5
+docker exec hermes-gateway bash -lc \
+  '/opt/hermes/.venv/bin/hermes tools enable a2a --platform telegram' \
+  || echo "  WARN: failed to enable a2a toolset (non-fatal)"
+
 cd /opt/docker/hermes-sysadmin && docker compose up -d
 cd /opt/docker/dsh && docker compose up -d --build
 
