@@ -199,4 +199,12 @@ cp -f "$REPO_DIR/reverse-proxy/conf.d/"*.conf /opt/docker/reverse-proxy/conf.d/
 echo "  copied: reverse-proxy/conf.d/*.conf -> /opt/docker/reverse-proxy/conf.d/"
 docker exec nginx-proxy nginx -t && docker exec nginx-proxy nginx -s reload || echo "  WARN: nginx reload failed"
 
+# ================================================================
+# Hermes Studio
+# ================================================================
+cp -f "$REPO_DIR/docker/docker-compose.studio.yml" /opt/docker/hermes-studio/docker-compose.yml
+echo "  copied: docker-compose.studio.yml -> /opt/docker/hermes-studio/"
+mkdir -p /opt/docker/hermes-studio/data
+cd /opt/docker/hermes-studio && docker compose up -d
+
 echo "=== Deploy completed at $(date -Iseconds) ==="

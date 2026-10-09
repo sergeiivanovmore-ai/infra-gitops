@@ -1,9 +1,15 @@
 # Архитектура развертывания VPS
 
-**Версия:** 1.3
+**Версия:** 1.4
 **Дата:** 2026-10-09
 **Статус:** УТВЕРЖДЕНО
 
+> **Изменения в 1.4 (2026-10-09):**
+> - добавлен контейнер hermes-studio (образ ekkoye8888/hermes-web-ui:latest, внутренний порт 6060, dual-home: mcp-network + vpn-net); наружу не публикуется — только 127.0.0.1:6060:6060.
+> - reverse-proxy/conf.d/studio.conf — фаза HTTP-only для выпуска сертификата certbot (домен studio.jt-design.ru).
+> - docker/docker-compose.studio.yml — volume /opt/docker/hermes-studio/data → /home/agent (uid контейнера = root, chown не требуется).
+> - в scripts/deploy-infra.sh добавлен блок Hermes Studio после блока reverse-proxy.
+>
 > **Изменения в 1.3 (2026-10-09):**
 > - dsh ходит в Docker API только через docker-socket-proxy (DOCKER_HOST=tcp://docker-socket-proxy:2375); прямой /var/run/docker.sock у dsh убран.
 > - Образ docker-socket-proxy закреплён по digest (не :latest).
@@ -28,13 +34,14 @@
 
 ## Контейнеры
 
-Снимок `docker ps` от 2026-10-08 (11 running):
+Снимок `docker ps` от 2026-10-09 (12 running):
 
 | Контейнер | Образ | Порты (host→container) | Bind | Статус | Назначение |
 |-----------|-------|------------------------|------|--------|-----------|
 | hermes-gateway | nousresearch/hermes-agent:v2026.9.24 | 8642→8642, 9119→9119 | 127.0.0.1 | Up (пересоздан 2026-10-08 после deploy) | Оркестратор, Telegram-бот |
 | hermes-sysadmin | nousresearch/hermes-agent:v2026.9.24 | 8643→8642, 9120→9119 | 127.0.0.1 | Up 27h | Агент-администратор |
 | dsh | `53647345d871` (repo:tag отсутствует) | 3080→3080 | 127.0.0.1 | Up 31h | DeepSeek Harness, MCP-мост |
+| hermes-studio | ekkoye8888/hermes-web-ui:latest | 6060→6060 (loopback, наружу НЕ публикуется) | 127.0.0.1 | Up (новый) | Веб-панель Studio; сети: mcp-network + vpn-net |
 | nginx-proxy | nginx:1.27-alpine | 80→80, 443→443 | 0.0.0.0 | Up 13d | Обратный прокси |
 | design-site-nginx | nginx:alpine | 80/tcp объявлен, **НЕ опубликован** | — | Up 13d | Информационный сайт |
 | mail-relay | ghcr.io/jchonig/postfix:latest | 25→25 (опубликован); 465/tcp объявлен, **НЕ опубликован** | 0.0.0.0 | Up 13d | Почтовый релей |
@@ -53,9 +60,9 @@
 
 Все сети имеют `scope=local`. Драйверы указаны фактически:
 
-- **mcp-network** (bridge, local) — hermes-gateway, hermes-sysadmin, dsh, searxng, open-websearch, searxng-redis
+- **mcp-network** (bridge, local) — hermes-gateway, hermes-sysadmin, dsh, searxng, open-websearch, searxng-redis, hermes-studio
 - **hermes-net** (bridge, local) — hermes-sysadmin
-- **vpn-net** (bridge, local) — nginx-proxy, 3x-ui, design-site-nginx
+- **vpn-net** (bridge, local) — nginx-proxy, 3x-ui, design-site-nginx, hermes-studio
 - **proxy-network** (bridge, local) — design-site-nginx
 - **reverse-proxy_default** (bridge, local) — design-site-nginx
 - **mail-relay_default** (bridge, local) — mail-relay
@@ -75,6 +82,8 @@
 - nginx-proxy → 80/443 наружу; проксирует design-site-nginx
 - design-site-nginx доступен только из сетей vpn-net / proxy-network / reverse-proxy_default (порт наружу не опубликован)
 - gateway → filesystem-plus MCP ограничен /opt/data/workspace
+- nginx-proxy → hermes-studio:6060 (через vpn-net; внешний вход — studio.jt-design.ru, пока HTTP-only, WebSocket-заголовки обязательны)
+- hermes-studio → hermes-gateway:8642 (через mcp-network)
 
 > **Расхождение (обнаружено в 1.2):** в `mcp_servers` gateway сервер `dsh-carrot` настроен на `http://dsh:8090/mcp`, тогда как фактический порт контейнера `dsh` — **3080** (см. разделы «Контейнеры» и «MCP-серверы»). Требуется подтверждение: внутренний порт или устаревший endpoint.
 
