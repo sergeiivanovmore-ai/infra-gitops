@@ -86,18 +86,46 @@ for f in package.json pnpm-lock.yaml pnpm-workspace.yaml cordis.patch.yml cordis
   fi
 done
 
-# Установить зависимости DSH из обновлённого package.json
+# ── Ownership ДО pnpm install ──────────────────────────────────
+# Пользователь dsh (uid 10001) должен иметь право писать в $DSH_DST.
+# Если там остались root-овские файлы от прошлого деплоя, pnpm упадёт
+# с EACCES при попытке обновить node_modules или lock-файлы.
+chown -R 10001:10001 "$DSH_DST"
+
+# ── Установить зависимости DSH из обновлённого package.json ────
 echo "  syncing DSH profile web (pnpm install)..."
-docker exec -u dsh dsh sh -c '
-  cd /home/dsh/.dsh/profiles/web && \
-  pnpm install 2>&1 | tail -3
-' || echo "  WARN: pnpm install failed in DSH web profile"
+if ! docker exec -u dsh dsh sh -c '
+      cd /home/dsh/.dsh/profiles/web && \
+      pnpm install 2>&1 | tail -3
+    '; then
+  echo "  ERROR: pnpm install failed in DSH web profile" >&2
+fi
+
+# ── Очистка устаревшего session cache DSH ──────────────────────
+# В session_projcache могут храниться cwd с хост-путями вроде
+# /opt/docker, которых нет внутри контейнера. При старте DSH
+# восстанавливает последнюю сессию и падает на realpath('/opt/docker'):
+#   [dsh-carrot-on-a-stick] workspace attach failed:
+#   Error: ENOENT: no such file or directory, realpath '/opt/docker'
+# Каталог bind-mounted с хоста (./data:/home/dsh/.dsh в compose),
+# поэтому кэш переживает рестарты и переезжает между деплоями.
+# Удаляем только JSON-файлы сессий, каталоги и state.db не трогаем.
+DSH_SESSIONS="/opt/docker/dsh/data/storages/session_projcache/sessions"
+if [ -d "$DSH_SESSIONS" ]; then
+  before=$(find "$DSH_SESSIONS" -maxdepth 1 -type f -name '*.json' 2>/dev/null | wc -l)
+  find "$DSH_SESSIONS" -maxdepth 1 -type f -name '*.json' -delete 2>/dev/null || true
+  after=$(find "$DSH_SESSIONS" -maxdepth 1 -type f -name '*.json' 2>/dev/null | wc -l)
+  echo "  cleaned: DSH session_projcache ($before -> $after files)"
+fi
+
+# ── Повторный chown ────────────────────────────────────────────
+# На случай, если pnpm оставил временные файлы с другим владельцем.
+chown -R 10001:10001 "$DSH_DST"
 
 # ================================================================
 # Ownership
 # ================================================================
 chown -R 10000:10000 /opt/docker/hermes/data /opt/docker/hermes-sysadmin/data
-chown -R 10001:10001 /opt/docker/dsh/data/profiles/web
 
 # ================================================================
 # Ensure tirith exists in gateway (copy from sysadmin if missing)
