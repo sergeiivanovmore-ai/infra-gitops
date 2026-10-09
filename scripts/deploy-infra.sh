@@ -118,6 +118,32 @@ if [ -d "$DSH_SESSIONS" ]; then
   echo "  cleaned: DSH session_projcache ($before -> $after files)"
 fi
 
+# ── Очистка мёртвых session-директорий ─────────────────────────
+# DSH группирует сессии по cwd в /home/dsh/.dsh/sessions/<slug>/,
+# где slug -- это cwd с / → - (например --opt-docker-- для /opt/docker).
+# Если cwd не существует внутри контейнера, плагин dsh-carrot-on-a-stick
+# падает на realpath(cwd):
+#   [dsh-carrot-on-a-stick] workspace attach failed:
+#   Error: ENOENT: no such file or directory, realpath '/opt/docker'
+# Проверяем существование изнутри контейнера (на хосте /opt/docker есть!),
+# удаляем только мёртвые папки.
+DSH_SESSIONS_ROOT="/opt/docker/dsh/data/sessions"
+if [ -d "$DSH_SESSIONS_ROOT" ]; then
+  removed=0
+  for d in "$DSH_SESSIONS_ROOT"/--*--; do
+    [ -e "$d" ] || continue
+    name=$(basename "$d")
+    rel=${name#--}; rel=${rel%--}
+    candidate="/${rel//-//}"
+    if ! docker exec dsh test -e "$candidate" 2>/dev/null; then
+      rm -rf "$d"
+      removed=$((removed + 1))
+      echo "  removed dead session dir: $name (cwd=$candidate missing in container)"
+    fi
+  done
+  echo "  cleaned: DSH dead session dirs ($removed removed)"
+fi
+
 # ── Повторный chown ────────────────────────────────────────────
 # На случай, если pnpm оставил временные файлы с другим владельцем.
 chown -R 10001:10001 "$DSH_DST"

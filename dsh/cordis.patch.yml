@@ -5,6 +5,9 @@
     http: true
     port: 8090
     host: 0.0.0.0
+    reattachOrphans: false
+    workspaceRoots:
+      - /home/dsh/workspace
     allowedHosts:
       - "dsh"
       - "dsh:8090"
