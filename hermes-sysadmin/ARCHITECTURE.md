@@ -1,8 +1,13 @@
 # Архитектура развертывания VPS
 
-**Версия:** 1.2
-**Дата:** 2026-10-08
+**Версия:** 1.3
+**Дата:** 2026-10-09
 **Статус:** УТВЕРЖДЕНО
+
+> **Изменения в 1.3 (2026-10-09):**
+> - dsh ходит в Docker API только через docker-socket-proxy (DOCKER_HOST=tcp://docker-socket-proxy:2375); прямой /var/run/docker.sock у dsh убран.
+> - Образ docker-socket-proxy закреплён по digest (не :latest).
+> - gateway: MCP filesystem-plus ограничен /opt/data/workspace.
 
 > **Изменения в 1.2 (сверка с фактом, живой снимок хоста от 2026-10-08):**
 > Источники версии 1.2 — реальный снимок прода, а не ручная ревизия: `docker ps` на хосте плюс чтение `config.yaml` внутри контейнеров `hermes-gateway` и `hermes-sysadmin` (`docker exec <ctr> cat /opt/data/config.yaml`).
@@ -36,6 +41,7 @@
 | searxng | searxng/searxng:latest | 8888→8080 | 127.0.0.1 | Up 13d | Поисковый движок |
 | open-websearch | ghcr.io/aas-ee/open-web-search:latest | 3000→3000 | 127.0.0.1 | Up 13d | Веб-поиск |
 | searxng-redis | redis:alpine | — | — | Up 13d | Кэш для searxng |
+| docker-socket-proxy | tecnativa/docker-socket-proxy@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459 | 2375 (internal, не публикуется) | /var/run/docker.sock:/var/run/docker.sock:ro | running | Прокси Docker API с read-only allowlist |
 
 > Контейнер **weavescope** из 1.1 в выводе `docker ps` (без `-a`) не виден — он либо остаётся `Exited`, либо удалён; отдельная проверка через `docker ps -a` в 1.2 не выполнялась.
 > Изменение образа `dsh`: было `stefankhor/dsh-docker:latest`, стало голый image-id `53647345d871` — контейнер поднят из образа без repo:tag; кандидат на пересборку/ретег.
@@ -62,9 +68,12 @@
 
 - hermes-gateway → A2A → hermes-sysadmin (порт 9900; внутри сети, наружу не публикуется)
 - hermes-sysadmin → MCP → dsh (порт **3080**)
-- dsh → Docker socket → управление контейнерами хоста
+- dsh → docker-socket-proxy (DOCKER_HOST=tcp://docker-socket-proxy:2375)
+- docker-socket-proxy → /var/run/docker.sock (read-only)
+- dsh больше не имеет прямого доступа к docker.sock
 - nginx-proxy → 80/443 наружу; проксирует design-site-nginx
 - design-site-nginx доступен только из сетей vpn-net / proxy-network / reverse-proxy_default (порт наружу не опубликован)
+- gateway → filesystem-plus MCP ограничен /opt/data/workspace
 
 > **Расхождение (обнаружено в 1.2):** в `mcp_servers` gateway сервер `dsh-carrot` настроен на `http://dsh:8090/mcp`, тогда как фактический порт контейнера `dsh` — **3080** (см. разделы «Контейнеры» и «MCP-серверы»). Требуется подтверждение: внутренний порт или устаревший endpoint.
 
@@ -100,6 +109,8 @@
 - hermes-sysadmin НЕ имеет Telegram-токена
 - Docker-инструменты доступны только через DSH
 - Деструктивные операции требуют подтверждения
+- dsh может ps/logs/inspect, НЕ может restart/stop/rm/exec (POST=0/EXEC=0, 403 от haproxy)
+- gateway: filesystem-plus только /opt/data/workspace
 
 ## GitOps-пайплайн
 
