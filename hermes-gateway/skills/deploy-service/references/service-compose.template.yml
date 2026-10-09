@@ -1,0 +1,31 @@
+# Шаблон compose нового сервиса за edge-прокси.
+# Правила: порт только на loopback; dual-home — сеть внутренних API + сеть edge-прокси.
+services:
+  <service>:
+    image: <image>:<tag>
+    container_name: <service>
+    restart: unless-stopped
+
+    environment:
+      PORT: "<port>"
+      BIND_HOST: "0.0.0.0"
+
+    ports:
+      - "127.0.0.1:<port>:<port>"      # НИКОГДА не публиковать наружу
+
+    volumes:
+      - /opt/docker/<service>/data:<container-path>
+      # uid контейнера проверять через docker run --rm <image> id.
+      # Если uid=0 — chown не нужен. Иначе chown в deploy-infra.sh.
+
+    networks:
+      - mcp-network                     # доступ к внутренним API (hermes-gateway:8642)
+      - vpn-net                         # доступ edge-прокси (nginx-proxy) к сервису
+
+networks:
+  mcp-network:
+    external: true
+    name: mcp-network
+  vpn-net:
+    external: true
+    name: vpn-net
