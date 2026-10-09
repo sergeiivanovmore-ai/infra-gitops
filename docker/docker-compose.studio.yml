@@ -1,0 +1,27 @@
+services:
+  hermes-studio:
+    image: ekkoye8888/hermes-web-ui:latest
+    container_name: hermes-studio
+    restart: unless-stopped
+
+    environment:
+      PORT: "6060"
+      BIND_HOST: "0.0.0.0"
+
+    ports:
+      - "127.0.0.1:6060:6060"
+
+    volumes:
+      - /opt/docker/hermes-studio/data:/home/agent
+
+    networks:
+      - mcp-network
+      - vpn-net
+
+networks:
+  mcp-network:
+    external: true
+    name: mcp-network
+  vpn-net:
+    external: true
+    name: vpn-net
