@@ -6,7 +6,7 @@
 
 > **Изменения в 1.4 (2026-10-09):**
 > - добавлен контейнер hermes-studio (образ ekkoye8888/hermes-web-ui:latest, внутренний порт 6060, dual-home: mcp-network + vpn-net); наружу не публикуется — только 127.0.0.1:6060:6060.
-> - reverse-proxy/conf.d/studio.conf — фаза HTTP-only для выпуска сертификата certbot (домен studio.jt-design.ru).
+> - reverse-proxy/conf.d/studio.conf — HTTPS с сертификатом Let's Encrypt для studio.jt-design.ru (webroot, ecdsa, выпущен 2026-10-09).
 > - docker/docker-compose.studio.yml — volume /opt/docker/hermes-studio/data → /home/agent (uid контейнера = root, chown не требуется).
 > - в scripts/deploy-infra.sh добавлен блок Hermes Studio после блока reverse-proxy.
 >
@@ -82,7 +82,7 @@
 - nginx-proxy → 80/443 наружу; проксирует design-site-nginx
 - design-site-nginx доступен только из сетей vpn-net / proxy-network / reverse-proxy_default (порт наружу не опубликован)
 - gateway → filesystem-plus MCP ограничен /opt/data/workspace
-- nginx-proxy → hermes-studio:6060 (через vpn-net; внешний вход — studio.jt-design.ru, пока HTTP-only, WebSocket-заголовки обязательны)
+- nginx-proxy → hermes-studio:6060 (через vpn-net; внешний вход — studio.jt-design.ru, WebSocket-заголовки обязательны)
 - hermes-studio → hermes-gateway:8642 (через mcp-network)
 
 > **Расхождение (обнаружено в 1.2):** в `mcp_servers` gateway сервер `dsh-carrot` настроен на `http://dsh:8090/mcp`, тогда как фактический порт контейнера `dsh` — **3080** (см. разделы «Контейнеры» и «MCP-серверы»). Требуется подтверждение: внутренний порт или устаревший endpoint.
