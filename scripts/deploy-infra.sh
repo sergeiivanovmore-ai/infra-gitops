@@ -113,12 +113,17 @@ done
 chown -R 10001:10001 "$DSH_DST"
 
 # ── Установить зависимости DSH из обновлённого package.json ────
-echo "  syncing DSH profile web (pnpm install)..."
-if ! docker exec -u dsh dsh sh -c '
-      cd /home/dsh/.dsh/profiles/web && \
-      pnpm install 2>&1 | tail -3
-    '; then
-  echo "  ERROR: pnpm install failed in DSH web profile" >&2
+# agents-disabled-dsh-guard: пропускаем, если dsh остановлен
+if [ "$AGENTS_ENABLED" = "1" ]; then
+  echo "  syncing DSH profile web (pnpm install)..."
+  if ! docker exec -u dsh dsh sh -c '
+        cd /home/dsh/.dsh/profiles/web && \
+        pnpm install 2>&1 | tail -3
+      '; then
+    echo "  ERROR: pnpm install failed in DSH web profile" >&2
+  fi
+else
+  echo "  skipped: DSH pnpm install (agents disabled)"
 fi
 
 # ── Очистка устаревшего session cache DSH ──────────────────────
