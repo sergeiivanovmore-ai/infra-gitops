@@ -21,4 +21,7 @@ RUN node --version | grep -q "v24" && \
     echo "✅ pnpm works on Node $(node --version)" || \
     (echo "❌ ERROR: Node is not v24 or pnpm broken" && exit 1)
 
+RUN apt-get update && apt-get install -y --no-install-recommends docker.io && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
 USER dsh
