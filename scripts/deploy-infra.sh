@@ -158,6 +158,21 @@ chown -R 10001:10001 "$DSH_DST"
 # ================================================================
 chown -R 10000:10000 /opt/docker/hermes/data /opt/docker/hermes-sysadmin/data
 
+# ── Normalize gateway .env ─────────────────────────────────────
+# Hermes загружает /opt/data/.env с override=True — эти значения
+# перебивают env из docker-compose. Отключаем встроенный dashboard,
+# иначе gateway уходит в retry-loop:
+#   Refusing to bind dashboard to 0.0.0.0 — no auth providers.
+GW_ENV="$GW_DST/.env"
+if [ -f "$GW_ENV" ]; then
+  if grep -q '^HERMES_DASHBOARD=' "$GW_ENV"; then
+    sed -i 's/^HERMES_DASHBOARD=.*$/HERMES_DASHBOARD=0/' "$GW_ENV"
+  else
+    echo 'HERMES_DASHBOARD=0' >> "$GW_ENV"
+  fi
+  echo "  normalized: HERMES_DASHBOARD=0 in $GW_ENV"
+fi
+
 # ================================================================
 # Ensure tirith exists in gateway (copy from sysadmin if missing)
 # ================================================================
