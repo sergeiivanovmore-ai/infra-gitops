@@ -1,8 +1,16 @@
 # Архитектура развертывания VPS
 
-**Версия:** 1.4
+**Версия:** 1.5
 **Дата:** 2026-10-09
 **Статус:** УТВЕРЖДЕНО
+
+> **Изменения в 1.5 (2026-10-09):**
+> - hermes-studio получил два read-only bind-mount'а чужих профилей агентов:
+>   - /opt/docker/hermes/data → /home/agent/.hermes/profiles/gateway:ro
+>   - /opt/docker/hermes-sysadmin/data → /home/agent/.hermes/profiles/sysadmin:ro
+> - В UI Studio отображаются профили gateway и sysadmin для просмотра их сессий.
+> - Запись в state.db живых агентов запрещена (ro): SQLite WAL не поддерживает двух писателей.
+> - Конвенция профилей: $HERMES_HOME/profiles/<name>/, где HERMES_HOME=/home/agent/.hermes.
 
 > **Изменения в 1.4 (2026-10-09):**
 > - добавлен контейнер hermes-studio (образ ekkoye8888/hermes-web-ui:latest, внутренний порт 6060, dual-home: mcp-network + vpn-net); наружу не публикуется — только 127.0.0.1:6060:6060.
@@ -41,7 +49,7 @@
 | hermes-gateway | nousresearch/hermes-agent:v2026.9.24 | 8642→8642, 9119→9119 | 127.0.0.1 | Up (пересоздан 2026-10-08 после deploy) | Оркестратор, Telegram-бот |
 | hermes-sysadmin | nousresearch/hermes-agent:v2026.9.24 | 8643→8642, 9120→9119 | 127.0.0.1 | Up 27h | Агент-администратор |
 | dsh | `53647345d871` (repo:tag отсутствует) | 3080→3080 | 127.0.0.1 | Up 31h | DeepSeek Harness, MCP-мост |
-| hermes-studio | ekkoye8888/hermes-web-ui:latest | 6060→6060 (loopback, наружу НЕ публикуется) | 127.0.0.1 | Up (новый) | Веб-панель Studio; сети: mcp-network + vpn-net |
+| hermes-studio | ekkoye8888/hermes-web-ui:latest | 6060→6060 (loopback, наружу НЕ публикуется) | 127.0.0.1; +/opt/docker/hermes/data→/home/agent/.hermes/profiles/gateway:ro; +/opt/docker/hermes-sysadmin/data→/home/agent/.hermes/profiles/sysadmin:ro | Up (новый) | Веб-панель Studio; сети: mcp-network + vpn-net |
 | nginx-proxy | nginx:1.27-alpine | 80→80, 443→443 | 0.0.0.0 | Up 13d | Обратный прокси |
 | design-site-nginx | nginx:alpine | 80/tcp объявлен, **НЕ опубликован** | — | Up 13d | Информационный сайт |
 | mail-relay | ghcr.io/jchonig/postfix:latest | 25→25 (опубликован); 465/tcp объявлен, **НЕ опубликован** | 0.0.0.0 | Up 13d | Почтовый релей |
@@ -84,6 +92,7 @@
 - gateway → filesystem-plus MCP ограничен /opt/data/workspace
 - nginx-proxy → hermes-studio:6060 (через vpn-net; внешний вход — studio.jt-design.ru, WebSocket-заголовки обязательны)
 - hermes-studio → hermes-gateway:8642 (через mcp-network)
+- hermes-studio → (read-only) /opt/docker/hermes/data, /opt/docker/hermes-sysadmin/data — просмотр сессий чужих агентов без записи
 
 > **Расхождение (обнаружено в 1.2):** в `mcp_servers` gateway сервер `dsh-carrot` настроен на `http://dsh:8090/mcp`, тогда как фактический порт контейнера `dsh` — **3080** (см. разделы «Контейнеры» и «MCP-серверы»). Требуется подтверждение: внутренний порт или устаревший endpoint.
 
@@ -129,3 +138,7 @@
 Пайплайн: изменение в репозитории `sergeiivanovmore-ai/infra-gitops` → merge в `main` → GitHub Actions workflow `deploy.yml` → `scripts/deploy-infra.sh` (под root) → `cp` файла в bind-mount (`/opt/docker/hermes/data`) → `docker compose up -d --force-recreate`.
 
 Подтверждение от 2026-10-08: PR #9 → merge `18:52:20` → срабатывание Actions `deploy.yml` → `deploy-infra.sh` → пересоздание `hermes-gateway` (uptime ~9 мин на момент снимка). Деплой применяется к живым контейнерам за ~13 с после merge.
+
+## Открытые вопросы
+
+- Если SQLite в профиле, смонтированном `:ro`, не откроется (для WAL нужны соседние `-shm`/`-wal`), потребуется отдельный PR: смонтировать профиль `rw` и ограничить запись в `state.db` иным способом.
