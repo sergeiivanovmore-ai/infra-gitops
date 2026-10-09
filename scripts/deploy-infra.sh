@@ -7,6 +7,17 @@ REPO_DIR="/opt/infra-gitops"
 LOG_FILE="/var/log/infra-deploy.log"
 
 exec >> "$LOG_FILE" 2>&1
+
+# ── AGENTS_DISABLED_BLOCK_V1: управление standalone-агентами ──────────────────────
+# Если файл /opt/docker/hermes/.agents_disabled существует —
+# gateway, sysadmin и dsh не поднимаются. Удалить файл — вернутся
+# при следующем деплое. Управление на хосте, без PR.
+AGENTS_ENABLED=1
+if [ -f /opt/docker/hermes/.agents_disabled ]; then
+  AGENTS_ENABLED=0
+  echo "  AGENTS_DISABLED: standalone agents will not be started"
+fi
+
 echo "=== Deploy started at $(date -Iseconds) ==="
 
 cd "$REPO_DIR"
@@ -176,7 +187,7 @@ fi
 # ================================================================
 # Ensure tirith exists in gateway (copy from sysadmin if missing)
 # ================================================================
-if ! docker exec hermes-gateway test -x /opt/data/bin/tirith 2>/dev/null; then
+if [ "$AGENTS_ENABLED" = "1" ] && ! docker exec hermes-gateway test -x /opt/data/bin/tirith 2>/dev/null; then
   echo "  restoring tirith in gateway..."
   if docker exec hermes-sysadmin test -x /opt/data/bin/tirith 2>/dev/null; then
     docker cp hermes-sysadmin:/opt/data/bin/tirith /tmp/tirith.gw 2>/dev/null
@@ -194,17 +205,27 @@ fi
 # ================================================================
 # Restart
 # ================================================================
-cd /opt/docker/hermes && docker compose up -d --force-recreate
+if [ "$AGENTS_ENABLED" = "1" ]; then
+  cd /opt/docker/hermes && docker compose up -d --force-recreate
+else
+  echo "  skipped: hermes-gateway (agents disabled)"
+fi
 
 # ── Ensure A2A toolset enabled (runtime state, not in config.yaml) ──
-echo "  ensuring a2a toolset for telegram..."
-sleep 5
-docker exec hermes-gateway bash -lc \
-  '/opt/hermes/.venv/bin/hermes tools enable a2a --platform telegram' \
-  || echo "  WARN: failed to enable a2a toolset (non-fatal)"
+if [ "$AGENTS_ENABLED" = "1" ]; then
+  echo "  ensuring a2a toolset for telegram..."
+  sleep 5
+  docker exec hermes-gateway bash -lc \
+    '/opt/hermes/.venv/bin/hermes tools enable a2a --platform telegram' \
+    || echo "  WARN: failed to enable a2a toolset (non-fatal)"
+fi
 
-cd /opt/docker/hermes-sysadmin && docker compose up -d
-cd /opt/docker/dsh && docker compose up -d --build
+if [ "$AGENTS_ENABLED" = "1" ]; then
+  cd /opt/docker/hermes-sysadmin && docker compose up -d
+fi
+if [ "$AGENTS_ENABLED" = "1" ]; then
+  cd /opt/docker/dsh && docker compose up -d --build
+fi
 
 # ================================================================
 # reverse-proxy (nginx-proxy): конфиги из репо

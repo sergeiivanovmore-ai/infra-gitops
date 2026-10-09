@@ -1,8 +1,15 @@
 # Архитектура развертывания VPS
 
-**Версия:** 1.4
+**Версия:** 1.5
 **Дата:** 2026-10-09
 **Статус:** УТВЕРЖДЕНО
+
+> **Изменения в 1.5 (2026-10-09):**
+> - В `scripts/deploy-infra.sh` добавлен флаг `/opt/docker/hermes/.agents_disabled`.
+> - Если файл существует — standalone-агенты (`hermes-gateway`, `hermes-sysadmin`, `dsh`) не поднимаются; tirith-блок и A2A-enable пропускаются.
+> - Управление на хосте: `touch` — выключить, `rm` — вернуть. PR не требуется.
+> - По умолчанию (файла нет) поведение прежнее.
+> - Studio (`hermes-studio`), reverse-proxy и nginx-reload работают всегда.
 
 > **Изменения в 1.4 (2026-10-09):**
 > - добавлен контейнер hermes-studio (образ ekkoye8888/hermes-web-ui:latest, внутренний порт 6060, dual-home: mcp-network + vpn-net); наружу не публикуется — только 127.0.0.1:6060:6060.
@@ -129,3 +136,5 @@
 Пайплайн: изменение в репозитории `sergeiivanovmore-ai/infra-gitops` → merge в `main` → GitHub Actions workflow `deploy.yml` → `scripts/deploy-infra.sh` (под root) → `cp` файла в bind-mount (`/opt/docker/hermes/data`) → `docker compose up -d --force-recreate`.
 
 Подтверждение от 2026-10-08: PR #9 → merge `18:52:20` → срабатывание Actions `deploy.yml` → `deploy-infra.sh` → пересоздание `hermes-gateway` (uptime ~9 мин на момент снимка). Деплой применяется к живым контейнерам за ~13 с после merge.
+
+Управление standalone-агентами: наличие файла `/opt/docker/hermes/.agents_disabled` отключает запуск `hermes-gateway`, `hermes-sysadmin`, `dsh` при деплое. Файл создаётся/удаляется на хосте.
