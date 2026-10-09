@@ -26,8 +26,12 @@ git reset --hard origin/main
 
 # ── Self-install: обновляем хостовую копию из репо ──────────────
 if [ -f "$REPO_DIR/scripts/deploy-infra.sh" ]; then
-  cp -f "$REPO_DIR/scripts/deploy-infra.sh" /usr/local/bin/deploy-infra.sh
-  chmod 755 /usr/local/bin/deploy-infra.sh
+  # self-install-atomic: cp -f пишет по тому же inode, и bash,
+  # читающий этот же файл, ловит рассинхрон → syntax error.
+  # mv атомарен — bash продолжает читать старый inode.
+  cp -f "$REPO_DIR/scripts/deploy-infra.sh" /usr/local/bin/deploy-infra.sh.new
+  chmod 755 /usr/local/bin/deploy-infra.sh.new
+  mv -f /usr/local/bin/deploy-infra.sh.new /usr/local/bin/deploy-infra.sh
   echo "  self-install: deploy-infra.sh updated from repo (takes effect next deploy)"
 fi
 
