@@ -13,6 +13,11 @@ services:
 
     volumes:
       - /opt/docker/hermes-studio/data:/home/agent
+      # Чужие профили для просмотра сессий в Studio.
+      # ro: Studio не должна писать в state.db живых агентов
+      # (SQLite WAL — конкурентная запись опасна).
+      - /opt/docker/hermes/data:/home/agent/.hermes/profiles/gateway:ro
+      - /opt/docker/hermes-sysadmin/data:/home/agent/.hermes/profiles/sysadmin:ro
 
     networks:
       - mcp-network
