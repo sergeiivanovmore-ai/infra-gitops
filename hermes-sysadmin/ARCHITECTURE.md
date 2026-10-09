@@ -8,6 +8,7 @@
 > - dsh ходит в Docker API только через docker-socket-proxy (DOCKER_HOST=tcp://docker-socket-proxy:2375); прямой /var/run/docker.sock у dsh убран.
 > - Образ docker-socket-proxy закреплён по digest (не :latest).
 > - gateway: MCP filesystem-plus ограничен /opt/data/workspace.
+> - nginx-конфиги приняты в GitOps (adopt, 2026-10-09): репо-каталог reverse-proxy/conf.d/ → живой хостовый /opt/docker/reverse-proxy/conf.d/; существующий jt-design.ru.conf копируется как есть, файл .save не переносится. Содержимое конфигов не менялось, версия документа остаётся 1.3.
 
 > **Изменения в 1.2 (сверка с фактом, живой снимок хоста от 2026-10-08):**
 > Источники версии 1.2 — реальный снимок прода, а не ручная ревизия: `docker ps` на хосте плюс чтение `config.yaml` внутри контейнеров `hermes-gateway` и `hermes-sysadmin` (`docker exec <ctr> cat /opt/data/config.yaml`).

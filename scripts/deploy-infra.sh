@@ -71,6 +71,11 @@ if [ -f "$SA_SRC/cron/jobs.json" ]; then
   echo "  copied: cron/jobs.json"
 fi
 
+if [ -d "$SA_SRC/skills" ]; then
+  rsync -a "$SA_SRC/skills/" "$SA_DST/skills/" 2>/dev/null && \
+    echo "  synced: skills/"
+fi
+
 # ================================================================
 # DSH
 # ================================================================
@@ -185,5 +190,13 @@ docker exec hermes-gateway bash -lc \
 
 cd /opt/docker/hermes-sysadmin && docker compose up -d
 cd /opt/docker/dsh && docker compose up -d --build
+
+# ================================================================
+# reverse-proxy (nginx-proxy): конфиги из репо
+# ================================================================
+mkdir -p /opt/docker/reverse-proxy/conf.d
+cp -f "$REPO_DIR/reverse-proxy/conf.d/"*.conf /opt/docker/reverse-proxy/conf.d/
+echo "  copied: reverse-proxy/conf.d/*.conf -> /opt/docker/reverse-proxy/conf.d/"
+docker exec nginx-proxy nginx -t && docker exec nginx-proxy nginx -s reload || echo "  WARN: nginx reload failed"
 
 echo "=== Deploy completed at $(date -Iseconds) ==="
