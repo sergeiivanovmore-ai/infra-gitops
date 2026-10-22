@@ -799,7 +799,12 @@ mcp_servers:
   dsh:
     url: "http://dsh:8090/mcp"
     transport: "http"
+    trust: full
     timeout: 900
+    headers:
+      Authorization: "Bearer ${DSH_MCP_TOKEN}"
+    tools:
+      include: ["agent_run"]
 #   time:
 #     command: uvx
 #     args: ["mcp-server-time"]
@@ -1134,12 +1139,35 @@ onboarding:
     busy_input_prompt: true
 
 approvals:
-  mode: manual
+  mode: smart
   timeout: 600
   enabled: true
   require_approval: true
   auto_approve_all: false
-
+  deny:
+    - "rm -rf /*"
+    - "rm -rf /etc*"
+    - "rm -rf /var*"
+    - "rm -rf /opt*"
+    - "rm -rf /home*"
+    - "rm -rf /root*"
+    - "dd if=*"
+    - "dd of=/dev/*"
+    - "mkfs*"
+    - "chmod -R 777 /*"
+    - "chown -R * /*"
+    - "docker system prune*"
+    - "docker volume prune*"
+    - "docker image prune -a*"
+    - "shutdown*"
+    - "reboot*"
+    - "halt*"
+    - "poweroff*"
+    - "systemctl poweroff*"
+    - "userdel*"
+    - "passwd*"
+    - "visudo*"
+    - ":(){ :|:& };:"
 security:
   allow_private_urls: false
   redact_secrets: true
@@ -1154,5 +1182,10 @@ security:
   acked_advisories: []
   allow_lazy_installs: false    # ← критично
 
+
+dashboard:
+  basic_auth:
+    username: "hermes_admin"          # можете оставить тот же логин, что и в htpasswd
+    password_hash: "scrypt$16384$8$1$1cLU4fblcAVEyhRCf2sWkA==$YL/7QACTAszCqmgUexEPn3zGVi70ELtHUoGKB+xJsAg="  # вставьте хеш из Шага 1
 
 
