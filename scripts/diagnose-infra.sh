@@ -116,8 +116,12 @@ else
 fi
 
 say ""
-say "## /opt: крупнейшие каталоги"
-du -sh /opt/docker/* 2>/dev/null | sort -h | tail -6 >> "$OUT"
+say "## Диск: крупнейшие каталоги /opt/docker (глубина 2)"
+timeout 60 du -xh --max-depth=2 /opt/docker/*/ 2>/dev/null | sort -h | tail -12 >> "$OUT"
+
+say ""
+say "## Диск: крупнейшие файлы больше 100 МБ"
+timeout 60 find /opt/docker -xdev -type f -size +100M -printf '%k KB\t%p\n' 2>/dev/null | sort -n | tail -12 >> "$OUT"
 
 say ""
 say "## ТРЕВОГИ"
