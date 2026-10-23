@@ -8,6 +8,21 @@ LOG_FILE="/var/log/infra-deploy.log"
 
 exec >> "$LOG_FILE" 2>&1
 
+# ── Для агента: копия лога ЭТОГО прогона в bind hermes-sysadmin ──────────────
+# Агент читает результат деплоя сам: без docker exec и без ручного tail.
+# trap на EXIT — копия делается на ЛЮБОМ выходе: успех, провал аудит-гейта,
+# провал nginx -t (именно эти случаи важнее всего).
+DEPLOY_RUN_OFFSET=$(wc -c < "$LOG_FILE" 2>/dev/null || echo 0)
+DEPLOY_LOG_COPY="/opt/docker/hermes-sysadmin/data/logs/deploy-last.log"
+copy_deploy_log() {
+  mkdir -p "/opt/docker/hermes-sysadmin/data/logs" 2>/dev/null || return 0
+  tail -c +$(( ${DEPLOY_RUN_OFFSET:-0} + 1 )) "$LOG_FILE" > "$DEPLOY_LOG_COPY.tmp" 2>/dev/null || return 0
+  mv -f "$DEPLOY_LOG_COPY.tmp" "$DEPLOY_LOG_COPY" 2>/dev/null || return 0
+  chmod 644 "$DEPLOY_LOG_COPY" 2>/dev/null || true
+}
+trap copy_deploy_log EXIT
+
+
 # ── AGENTS_DISABLED_BLOCK_V1: управление standalone-агентами ──────────────────────
 # Если файл /opt/docker/hermes/.agents_disabled существует —
 # gateway, sysadmin и dsh не поднимаются. Удалить файл — вернутся
