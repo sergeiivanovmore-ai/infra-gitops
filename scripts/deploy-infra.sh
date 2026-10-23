@@ -32,6 +32,13 @@ if [ -f "$REPO_DIR/scripts/deploy-infra.sh" ]; then
   cp -f "$REPO_DIR/scripts/deploy-infra.sh" /usr/local/bin/deploy-infra.sh.new
   chmod 755 /usr/local/bin/deploy-infra.sh.new
   mv -f /usr/local/bin/deploy-infra.sh.new /usr/local/bin/deploy-infra.sh
+  # audit-check.sh: та же атомарная подмена, иначе хостовая копия
+  # снова разъедется с репо (аудит — это гейт деплоя).
+  cp -f "$REPO_DIR/scripts/audit-check.sh" /usr/local/bin/audit-check.sh.new
+  chmod 755 /usr/local/bin/audit-check.sh.new
+  mv -f /usr/local/bin/audit-check.sh.new /usr/local/bin/audit-check.sh
+  echo "  self-install: audit-check.sh updated from repo"
+
   echo "  self-install: deploy-infra.sh updated from repo (takes effect next deploy)"
 fi
 
