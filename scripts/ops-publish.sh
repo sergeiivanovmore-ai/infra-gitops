@@ -6,40 +6,49 @@
 # агента напрямую (bind /opt/docker/hermes-sysadmin/data/workspace), поэтому
 # транспорт — файлы, содержимое не проходит через модель.
 #
-# РАЗДЕЛЕНИЕ КАНАЛОВ (после второго ревью):
+# РАЗДЕЛЕНИЕ КАНАЛОВ:
 #   * автоматический путь (этот скрипт) несёт только КОНТЕНТ (docs/) и запуск
 #     уже влитых скриптов. Каталог scripts/ здесь ЗАПРЕЩЁН: иначе агент мог бы
 #     ревьюируемым PR дописать себе «одобренный» скрипт и тут же его выполнить.
 #     Правки того, что исполняется, идут только через отдельный, заметный канал —
-#     ручной PR по GitHub MCP, с вашим ревью и мержем;
+#     ручной PR по GitHub MCP, с ревью и мержем;
 #   * исполнение: запускается только то, что лежит в main, без аргументов, то
 #     есть в режиме плана.
 #
+# СТРУКТУРА OUTBOX (в workspace агента):
+#   outbox/agent/<тема>/<путь-в-репо>  — публикуется в ветку agent/<тема>
+#   outbox/run/<имя-скрипта>           — запустить scripts/<имя-скрипта> из main
+#   outbox/stuck/...                   — «застрявшее», только для ручного разбора
+#   outbox/sent/...                    — опубликованное, хранится 14 дней
+#   outbox/.state/                     — счётчики отказов
+# Имя ветки разбирается однозначно: префикс agent/ — ровно один сегмент, тема —
+# следующий. Каталоги верхнего уровня, кроме перечисленных, не публикуются, и о
+# каждом пишется предупреждение в лог, чтобы файл не «пропадал» молча.
+#
 # ОГРАНИЧЕНИЯ, ЗАШИТЫЕ В КОД:
-#   1) ветки только с префиксом agent/; main/master/HEAD запрещены жёстко;
+#   1) ветки только agent/<тема>; main/master/HEAD запрещены жёстко;
 #   2) ветка ПРОДОЛЖАЕТСЯ от своего текущего состояния (fetch + checkout от
-#      FETCH_HEAD), а для новой ветки база — свежий origin/main. Иначе каждый
-#      следующий выпуск собирался бы от main и молча затирал прежние файлы;
-#   3) пуш: для новой ветки — создание, для существующей — только
-#      --force-with-lease, прибитый к SHA, наблюдённому ДО работы, и только
-#      поверх ветки, вершину которой создал сам публикатор;
+#      FETCH_HEAD), для новой ветки база — свежий origin/main. Иначе следующий
+#      выпуск собирался бы от main и молча затирал прежние файлы;
+#   3) пуш: новая ветка — создание, существующая — только --force-with-lease,
+#      прибитый к SHA, который реально наблюдали: после fetch берётся
+#      rev-parse FETCH_HEAD, иначе гонка между ls-remote и fetch даёт ложный
+#      отказ с неверной причиной в логе;
 #   4) пути: белый список ALLOWED_PATHS, чёрный список BLOCKED_PATHS, проверка
 #      ДО копирования, один плохой файл отклоняет всю ветку (fail closed);
-#   5) симлинки и любые не-обычные файлы отклоняются;
+#   5) симлинки попадают в список через -type l и отклоняются ЯВНО, а не
+#      игнорируются молча;
 #   6) режим применения (--yes) включается только именем скрипта, переданным
 #      человеком через ручной workflow_dispatch (OPS_APPROVE). Инструмента
 #      запуска workflow у агента нет — подделать нельзя;
-#   7) запуск скрипта под timeout, свой лог ротируется по размеру.
+#   7) запуск скрипта под timeout, свой лог ротируется по размеру;
+#   8) отказы не могут длиться вечно: после STUCK_AFTER отказов подряд файлы
+#      переезжают в outbox/stuck/<ветка> с громкой записью в лог.
 #
-# ВАЖНО О ГРАНИЦАХ: проверка автора вершины (в п.3) — это SAFETY, то есть защита
-# от собственной логической ошибки публикатора, а не security-граница: email
-# автора подделывается, а кто может пушить в agent/*, у того и так есть права.
+# ВАЖНО О ГРАНИЦАХ: проверка автора вершины — это SAFETY (защита от собственной
+# логической ошибки публикатора), а не security-граница: email автора
+# подделывается, а кто может пушить в agent/*, у того и так есть права.
 # Настоящая защита — ревью PR, CODEOWNERS и ruleset на main.
-#
-# Структура outbox (в workspace агента):
-#   outbox/agent/<тема>/<путь-в-репо>  — файл для публикации в ветку agent/<тема>
-#   outbox/run/<имя-скрипта>           — запустить scripts/<имя-скрипта> из main
-# После успеха файлы переезжают в outbox/sent/... (хранятся 14 дней).
 set -u
 
 OUTBOX="/opt/docker/hermes-sysadmin/data/workspace/outbox"
@@ -57,6 +66,8 @@ SIGNER_EMAIL="hermes-sysadmin@localhost"
 RUN_TIMEOUT=600
 LOG_MAX=5242880
 SENT_DAYS=14
+STUCK_AFTER=3
+STATE_DIR="$OUTBOX/.state"
 
 OPS_APPROVE="${OPS_APPROVE:-}"
 
@@ -86,6 +97,33 @@ path_ok() {
   return 1
 }
 
+# Счётчик отказов по ветке: после STUCK_AFTER отказов подряд файлы уезжают в
+# outbox/stuck/, чтобы публикация не «застревала» молча навсегда.
+refuse() {
+  local bdir="$1" branch="$2" reason="$3"
+  local cf="$STATE_DIR/${branch//\//__}.refusals"
+  local n=0
+  mkdir -p "$STATE_DIR" 2>/dev/null
+  [ -f "$cf" ] && n=$(cat "$cf" 2>/dev/null || echo 0)
+  n=$((n + 1))
+  echo "$n" > "$cf" 2>/dev/null
+  log "ОТКАЗ ветку '$branch': $reason (отказов подряд: $n)"
+  if [ "$n" -ge "$STUCK_AFTER" ]; then
+    mkdir -p "$(dirname "$OUTBOX/stuck/$branch")" 2>/dev/null
+    if [ ! -e "$OUTBOX/stuck/$branch" ]; then
+      mv -f "$bdir" "$OUTBOX/stuck/$branch" 2>/dev/null || true
+    else
+      mv -f "$bdir" "$OUTBOX/stuck/$branch.$(date +%s)" 2>/dev/null || true
+    fi
+    rm -f "$cf" 2>/dev/null
+    log "ВНИМАНИЕ: '$branch' отказал $n раз подряд — файлы перенесены в outbox/stuck/$branch, нужен ручной разбор"
+  fi
+}
+
+clear_refusals() {
+  rm -f "$STATE_DIR/${1//\//__}.refusals" 2>/dev/null
+}
+
 log "старт (approve='${OPS_APPROVE}')"
 [ -d "$OUTBOX" ] || { log "outbox отсутствует — выходим"; exit 0; }
 
@@ -94,6 +132,10 @@ if [ ! -d "$REPO/.git" ]; then
   log "WARN: $REPO не git-репозиторий — работа с git невозможна"
   REPO_OK=0
 fi
+
+# Уборка при аварийном завершении (например, SIGTERM от таймаута workflow):
+# иначе недоделанные worktree копятся в .git/worktrees.
+trap 'git -C "$REPO" worktree remove --force "$WT" >/dev/null 2>&1 || true' EXIT
 
 # Свежий main нужен дважды: для проверки «скрипт есть в main» и как база новых
 # веток. Без fetch проверка отказывала бы на только что смерженном скрипте.
@@ -111,8 +153,10 @@ if [ -d "$OUTBOX/run" ]; then
       *[!A-Za-z0-9._-]*|"") log "ОТКАЗ run: недопустимое имя '$name'"; continue ;;
     esac
     # Скрипт обязан быть в main, а не просто в клоне: иначе мержа не было.
+    # Здесь отказ НЕ считается «застреванием»: заявка на только что открытый
+    # PR обязана дождаться мержа, и это нормальное ожидание, а не тупик.
     if [ "$REPO_OK" = "1" ] && ! git -C "$REPO" cat-file -e "origin/main:scripts/$name" 2>/dev/null; then
-      log "ОТКАЗ run: scripts/$name нет в main (нужен PR+мерж) — заявка ждёт"
+      log "ЖДЁТ run: scripts/$name нет в main (нужен PR+мерж)"
       continue
     fi
 
@@ -134,45 +178,59 @@ if [ -d "$OUTBOX/run" ]; then
   done
 fi
 
-# ---------- 2. публикация файлов в ветки agent/* ----------
+# ---------- 2. публикация файлов в ветки agent/<тема> ----------
 if [ "$REPO_OK" = "1" ]; then
   mkdir -p "$OUTBOX/sent"
   # Гигиена: истории публикаций и мусор worktree не растут бесконечно.
   find "$OUTBOX/sent" -type f -mtime +"$SENT_DAYS" -delete 2>/dev/null
   find "$OUTBOX/sent" -type d -empty -delete 2>/dev/null
+  find "$STATE_DIR" -type f -mtime +"$SENT_DAYS" -delete 2>/dev/null
   git -C "$REPO" worktree prune >/dev/null 2>&1
 
-  for bdir in "$OUTBOX"/*/; do
-    [ -d "$bdir" ] || continue
-    branch=$(basename "$bdir")
-    case "$branch" in
-      sent|run) continue ;;
+  # Каталоги верхнего уровня, которые не публикуются, — сообщаем громко, иначе
+  # положенный не туда файл «пропадал» бы молча.
+  for stray in "$OUTBOX"/*/; do
+    [ -d "$stray" ] || continue
+    case "$(basename "$stray")" in
+      agent|sent|run|stuck|.state) continue ;;
     esac
+    log "ВНИМАНИЕ: каталог '$(basename "$stray")' не публикуется — нужен путь outbox/${BRANCH_PREFIX}<тема>/"
+  done
 
-    case "$branch" in
-      "$BRANCH_PREFIX"*) : ;;
-      *) log "ОТКАЗ ветку '$branch': публикуем только в ${BRANCH_PREFIX}*"; continue ;;
-    esac
+  # Имя ветки разбирается однозначно: префикс занимает ровно один сегмент,
+  # поэтому ветка = agent/<тема>, а содержимое — внутри каталога темы.
+  for bdir in "$OUTBOX/$BRANCH_PREFIX"*/; do
+    [ -d "$bdir" ] || continue
+    theme=$(basename "$bdir")
+    branch="${BRANCH_PREFIX}${theme}"
+
     for bad in $FORBIDDEN_BRANCHES; do
-      if [ "$branch" = "$bad" ]; then
+      if [ "$theme" = "$bad" ] || [ "$branch" = "$bad" ]; then
         log "ОТКАЗ ветку '$branch': запрещена"
         continue 2
       fi
     done
 
-    files=$(cd "$bdir" && find . -type f | sed 's|^\./||')
+    # Симлинки тоже попадают в список (-type l), чтобы отказ был явным.
+    files=$(cd "$bdir" && find . \( -type f -o -type l \) | sed 's|^\./||')
     [ -n "$files" ] || continue
 
     # Сначала ПОЛНАЯ проверка, потом копирование (fail closed).
-    fail=0
+    fail=""
     while IFS= read -r f; do
-      if [ -L "$bdir/$f" ] || [ ! -f "$bdir/$f" ] || ! path_ok "$f"; then
-        log "ОТКАЗ ветку '$branch': недопустимый файл '$f'"
-        fail=1
-        break
+      if [ -L "$bdir/$f" ]; then
+        fail="симлинк '$f' не публикуется"
+      elif [ ! -f "$bdir/$f" ]; then
+        fail="не обычный файл '$f'"
+      elif ! path_ok "$f"; then
+        fail="путь '$f' вне белого списка или в чёрном"
       fi
+      [ -n "$fail" ] && break
     done <<< "$files"
-    [ "$fail" = "0" ] || continue
+    if [ -n "$fail" ]; then
+      refuse "$bdir" "$branch" "$fail"
+      continue
+    fi
 
     count=$(printf '%s\n' "$files" | wc -l)
 
@@ -180,17 +238,24 @@ if [ "$REPO_OK" = "1" ]; then
     # продолжается от себя, иначе следующий выпуск затёр бы прежние файлы.
     remote_sha=$(git -C "$REPO" ls-remote origin "refs/heads/$branch" 2>/dev/null | cut -f1)
     if [ -n "$remote_sha" ]; then
-      git -C "$REPO" fetch -q origin "refs/heads/$branch" 2>/dev/null
+      # SHA перечитывается ПОСЛЕ fetch: между ls-remote и fetch ветку могли
+      # сдвинуть, и lease, прибитый к устаревшему значению, дал бы ложный отказ.
+      if git -C "$REPO" fetch -q origin "refs/heads/$branch" 2>/dev/null; then
+        remote_sha=$(git -C "$REPO" rev-parse FETCH_HEAD 2>/dev/null)
+      else
+        refuse "$bdir" "$branch" "ветку не удалось получить (удалена между проверками?)"
+        continue
+      fi
       tip_author=$(git -C "$REPO" log -1 --format='%ae' FETCH_HEAD 2>/dev/null)
       if [ "$tip_author" != "$SIGNER_EMAIL" ]; then
-        log "ОТКАЗ ветку '$branch': её вершину создал не публикатор ($tip_author)"
+        refuse "$bdir" "$branch" "вершину создал не публикатор ($tip_author)"
         continue
       fi
     fi
 
     rm -rf "$WT"
     if ! git -C "$REPO" worktree add -f --detach "$WT" >/dev/null 2>&1; then
-      log "ERROR: не создать worktree для '$branch'"
+      refuse "$bdir" "$branch" "не создать worktree"
       continue
     fi
     if [ -n "$remote_sha" ]; then
@@ -199,7 +264,7 @@ if [ "$REPO_OK" = "1" ]; then
       base=origin/main
     fi
     if ! git -C "$WT" checkout -B "$branch" "$base" >/dev/null 2>&1; then
-      log "ERROR: не встать на базу '$base' для '$branch'"
+      refuse "$bdir" "$branch" "не встать на базу '$base'"
       git -C "$REPO" worktree remove --force "$WT" >/dev/null 2>&1
       continue
     fi
@@ -212,6 +277,7 @@ if [ "$REPO_OK" = "1" ]; then
     git -C "$WT" add -A
     if git -C "$WT" diff --cached --quiet; then
       log "ветка $branch: содержимое уже такое же, коммит не нужен"
+      clear_refusals "$branch"
       git -C "$REPO" worktree remove --force "$WT" >/dev/null 2>&1
       continue
     fi
@@ -229,17 +295,18 @@ if [ "$REPO_OK" = "1" ]; then
         push_ok=1
         log "ветка $branch: создана от origin/main, файлов: $count"
       else
-        log "ERROR: push (создание) в '$branch' не удался"
+        refuse "$bdir" "$branch" "push (создание) не удался"
       fi
     elif git -C "$WT" push -q --force-with-lease="refs/heads/$branch:$remote_sha" \
            origin "HEAD:refs/heads/$branch"; then
       push_ok=1
       log "ветка $branch: продолжена от своей вершины, файлов: $count"
     else
-      log "ERROR: push в '$branch' не удался (lease не совпал — ветку кто-то двигал)"
+      refuse "$bdir" "$branch" "push отвергнут: lease не совпал — ветку сдвинули"
     fi
 
     if [ "$push_ok" = "1" ]; then
+      clear_refusals "$branch"
       mkdir -p "$OUTBOX/sent/$branch"
       while IFS= read -r f; do
         mkdir -p "$OUTBOX/sent/$branch/$(dirname "$f")"
