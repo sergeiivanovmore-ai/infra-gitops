@@ -16,13 +16,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Собрать отчёт с VPS (read-only)
+        continue-on-error: true
         run: |
           mkdir -p ~/.ssh reports
           printf '%s\n' "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/vps_key
           chmod 600 ~/.ssh/vps_key
           ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
-            'bash /opt/infra-gitops/scripts/diagnose-infra.sh' > reports/latest.md
+            'bash /opt/infra-gitops/scripts/diagnose-infra.sh' > reports/latest.md 2>&1
           printf 'отчёт собран, байт: '; wc -c < reports/latest.md
 
       - name: Опубликовать отчёт в ветку reports/diag
@@ -33,3 +34,15 @@ jobs:
           git add -f reports/latest.md
           git commit -m "diag: отчёт $(date -u +%FT%TZ)" || exit 0
           git push -f origin reports/diag
+
+      - name: Проверить тревоги
+        run: |
+          if ! grep -q '^# Инфра-отчёт' reports/latest.md; then
+            echo "::error::Отчёт не собран (пусто или SSH недоступен) — смотрите шаг сбора выше"
+            exit 1
+          fi
+          if awk '/^## ТРЕВОГИ/{f=1;next} f&&/^- /{print; found=1} END{exit !found}' reports/latest.md; then
+            echo "::error::В отчёте есть тревоги — подробности в ветке reports/diag и в diag-last.md на хосте"
+            exit 1
+          fi
+          echo "тревог нет"
