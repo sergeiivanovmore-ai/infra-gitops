@@ -206,7 +206,8 @@ if [ "$REPO_OK" = "1" ]; then
 
     for bad in $FORBIDDEN_BRANCHES; do
       if [ "$theme" = "$bad" ] || [ "$branch" = "$bad" ]; then
-        log "ОТКАЗ ветку '$branch': запрещена"
+        # Тоже через refuse: иначе такие файлы висели бы вечно и спамили лог.
+        refuse "$bdir" "$branch" "запрещённое имя ветки ('$theme')"
         continue 2
       fi
     done
