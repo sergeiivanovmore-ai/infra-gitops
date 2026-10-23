@@ -250,6 +250,21 @@ mkdir -p /opt/docker/reverse-proxy/conf.d
 cp -f "$REPO_DIR/reverse-proxy/conf.d/"*.conf /opt/docker/reverse-proxy/conf.d/
 echo "  copied: reverse-proxy/conf.d/*.conf -> /opt/docker/reverse-proxy/conf.d/"
 
+# ── Сверка conf.d с репо: файлы, которых нет в репозитории, уводим в бэкап ──
+# Репо — единственный источник истины: «удалил из репо» действительно означает удалено.
+CONF_DIR="/opt/docker/reverse-proxy/conf.d"
+CONF_BACKUP="/opt/docker/backups/reverse-proxy-conf"
+mkdir -p "$CONF_BACKUP"
+for f in "$CONF_DIR"/*.conf; do
+  [ -e "$f" ] || continue
+  b=$(basename "$f")
+  if [ ! -f "$REPO_DIR/reverse-proxy/conf.d/$b" ]; then
+    mv -f "$f" "$CONF_BACKUP/$b.retired-$(date +%Y%m%d-%H%M%S)"
+    echo "  retired (нет в репо): $b -> $CONF_BACKUP/"
+  fi
+done
+
+
 # ================================================================
 # Hermes Studio
 # ================================================================
@@ -262,6 +277,13 @@ cd /opt/docker/hermes-studio && docker compose up -d
 # nginx reload — ПОСЛЕ старта всех сервисов
 # ================================================================
 sleep 5
-docker exec nginx-proxy nginx -t && docker exec nginx-proxy nginx -s reload || echo "  WARN: nginx reload failed"
+if docker exec nginx-proxy nginx -t; then
+  docker exec nginx-proxy nginx -s reload
+  echo "  nginx: конфиг проверен, reload выполнен"
+else
+  echo "  ERROR: nginx -t FAILED — конфигурация НЕ применена (nginx работает со старой)" >&2
+  echo "  ERROR: смотрите вывод nginx -t выше — там файл-виновник" >&2
+  exit 1
+fi
 
 echo "=== Deploy completed at $(date -Iseconds) ==="
