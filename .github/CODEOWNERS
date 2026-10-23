@@ -1,0 +1,10 @@
+# Владельцы кода. Смысл: при включённом в ruleset «Require review from Code
+# Owners» изменения в перечисленных каталогах нельзя слить без явного ревью.
+# Для scripts/ это важно отдельно: каталог scripts/ служит белым списком того,
+# что хостовый публикатор агента имеет право запускать, поэтому правка скрипта
+# = расширение прав и должна читаться глазами, а не мержиться по инерции.
+*                         @sergeiivanovmore-ai
+/.github/                 @sergeiivanovmore-ai
+/scripts/                 @sergeiivanovmore-ai
+/reverse-proxy/           @sergeiivanovmore-ai
+/docker/                  @sergeiivanovmore-ai

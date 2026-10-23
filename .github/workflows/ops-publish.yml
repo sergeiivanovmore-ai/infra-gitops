@@ -1,0 +1,52 @@
+name: Ops (публикация из outbox агента)
+
+# Зачем: у агента нет шелла и выхода в сеть, а запись файлов через GitHub MCP
+# идёт через модель (наблюдался огрызок вместо скрипта). Хост же читает workspace
+# агента напрямую, поэтому транспорт — файлы. Агент кладёт файл в outbox, а этот
+# workflow запускает на хосте scripts/ops-publish.sh, который коммитит его в
+# ветку agent/* и пушит. Мерж в main остаётся человеческим.
+#
+# Триггеры — только человек или расписание. Автозапуск пушем убран по ревью
+# безопасности: агент не должен инициировать выполнение сам.
+#
+# Режим применения деструктивных скриптов включается ТОЛЬКО входным параметром
+# approve этого ручного запуска: имя скрипта из outbox сравнивается с ним в
+# scripts/ops-publish.sh. У агента нет инструмента запуска workflow, поэтому
+# подделать подтверждение он не может — иначе --yes был бы лишь обещанием.
+
+on:
+  workflow_dispatch:
+    inputs:
+      approve:
+        description: "Имя скрипта из outbox/run, которому разрешён режим применения (--yes). Пусто — только план."
+        required: false
+        default: ""
+        type: string
+  schedule:
+    - cron: '23 */2 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Хостовый шаг — публикация outbox и запуск заявок"
+        uses: appleboy/ssh-action@v1
+        env:
+          OPS_APPROVE: ${{ github.event.inputs.approve }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          envs: OPS_APPROVE
+          command_timeout: 5m
+          request_pty: false
+          capture_stdout: true
+          script: |
+            if [ -f /opt/infra-gitops/scripts/ops-publish.sh ]; then
+              bash /opt/infra-gitops/scripts/ops-publish.sh
+            else
+              echo "ops-publish.sh ещё не в main — пропуск"
+            fi
