@@ -100,3 +100,21 @@ else
   ls -la /opt/infra-gitops 2>&1 | head -15
   ls -la /opt/infra-gitops/scripts 2>&1 | head -25
 fi
+
+# --- сходимость сайта: прод = main репозитория сайта ------------------------
+# Живой сайт отдаёт файлы из /opt/docker/jt-design-site, поэтому развёртывание
+# = приведение этой папки к содержимому src/ из main репозитория сайта.
+# Скрипт сам проверяет, что его код подтверждён владельцем
+# (approvals/deploy-site-prod.sh); без подтверждения он не делает ничего.
+# Ошибка сходимости исход деплоя не меняет.
+SITE_SYNC=/opt/infra-gitops/scripts/deploy-site-prod.sh
+if [ -f "$SITE_SYNC" ]; then
+  say "[$TS] -- сходимость сайта (прод = main репозитория сайта) --"
+  if timeout 600 bash "$SITE_SYNC"; then
+    say "[$TS] -- сайт: сходимость завершена --"
+  else
+    say "[$TS] -- сайт: сходимость завершилась с ошибкой (деплой не затронут) --"
+  fi
+else
+  say "[$TS] -- сайт: $SITE_SYNC не найден, пропуск --"
+fi
