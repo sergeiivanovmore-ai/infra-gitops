@@ -254,8 +254,39 @@ fi
 if [ "$AGENTS_ENABLED" = "1" ]; then
   cd /opt/docker/hermes-sysadmin && docker compose up -d
 fi
-if [ "$AGENTS_ENABLED" = "1" ]; then
-  cd /opt/docker/dsh && docker compose up -d --build
+# ── dsh: следует за репозиторием, даже когда standalone-агенты отключены ──
+# Раньше блок был под AGENTS_ENABLED, из-за чего правки compose (например новые
+# read-only монтирования) приезжали на диск и НЕ применялись: контейнер не
+# пересоздавался. Пересоздаём только при реальном изменении файлов — лишних
+# рестартов нет. Заморозить dsh отдельно: файл /opt/docker/dsh/.dsh_disabled.
+if [ -f /opt/docker/dsh/.dsh_disabled ]; then
+  echo "  skipped: dsh (.dsh_disabled)"
+else
+  DSH_COMPOSE="/opt/docker/dsh/docker-compose.yml"
+  DSH_DOCKERFILE="/opt/docker/dsh/Dockerfile.dsh"
+  DSH_STAMP="/opt/docker/dsh/.deploy.stamp"
+  dsh_compose_sum=$(md5sum "$DSH_COMPOSE" 2>/dev/null | cut -d' ' -f1)
+  dsh_dockerfile_sum=$(md5sum "$DSH_DOCKERFILE" 2>/dev/null | cut -d' ' -f1)
+  dsh_stamp_new="compose=$dsh_compose_sum dockerfile=$dsh_dockerfile_sum"
+  dsh_stamp_old=$(cat "$DSH_STAMP" 2>/dev/null || echo "")
+  if [ -z "$dsh_stamp_old" ]; then
+    printf '%s\n' "$dsh_stamp_new" > "$DSH_STAMP"
+    echo "  dsh: отпечаток конфигов записан (базовый), пересоздание не требуется"
+  elif [ "$dsh_stamp_new" = "$dsh_stamp_old" ]; then
+    echo "  dsh: конфиги не менялись — пересоздание не требуется"
+  else
+    dsh_build_flag=""
+    if [ "${dsh_stamp_old#*dockerfile=}" != "${dsh_stamp_new#*dockerfile=}" ]; then
+      dsh_build_flag="--build"
+      echo "  dsh: Dockerfile изменился — с пересборкой образа"
+    fi
+    if (cd /opt/docker/dsh && docker compose up -d $dsh_build_flag); then
+      printf '%s\n' "$dsh_stamp_new" > "$DSH_STAMP"
+      echo "  dsh: пересоздан (следует за репозиторием)"
+    else
+      echo "  ERROR: dsh не пересоздан (compose up failed)" >&2
+    fi
+  fi
 fi
 
 # ================================================================
@@ -279,6 +310,35 @@ for f in "$CONF_DIR"/*.conf; do
   fi
 done
 
+
+# ── Compose reverse-proxy: тоже из репо (порт, монтирования, healthcheck) ──
+# Применяем только при реальном изменении файла или если у живого nginx-proxy
+# нет healthcheck. Перед пересозданием — `docker compose config -q`: невалидный
+# compose из репо НЕ роняет ingress, деплой просто останавливается с ошибкой.
+RP_COMPOSE_SRC="$REPO_DIR/reverse-proxy/docker-compose.yml"
+RP_COMPOSE_DST="/opt/docker/reverse-proxy/docker-compose.yml"
+if [ -f "$RP_COMPOSE_SRC" ]; then
+  cp -f "$RP_COMPOSE_SRC" "$RP_COMPOSE_DST"
+  echo "  copied: reverse-proxy/docker-compose.yml -> /opt/docker/reverse-proxy/"
+  RP_STAMP="/opt/docker/reverse-proxy/.deploy.stamp"
+  rp_sum_new=$(md5sum "$RP_COMPOSE_DST" 2>/dev/null | cut -d' ' -f1)
+  rp_sum_old=$(cat "$RP_STAMP" 2>/dev/null || echo "")
+  rp_health=$(docker inspect nginx-proxy --format '{{if .Config.Healthcheck}}{{.Config.Healthcheck.Test}}{{end}}' 2>/dev/null || echo "")
+  if [ "$rp_sum_new" = "$rp_sum_old" ] && [ -n "$rp_health" ]; then
+    echo "  nginx-proxy: compose без изменений, healthcheck на месте"
+  elif (cd /opt/docker/reverse-proxy && docker compose config -q); then
+    echo "  nginx-proxy: применяю compose (пересоздание контейнера, 1-2 с)"
+    if (cd /opt/docker/reverse-proxy && docker compose up -d); then
+      printf '%s\n' "$rp_sum_new" > "$RP_STAMP"
+      echo "  nginx-proxy: пересоздан"
+    else
+      echo "  ERROR: nginx-proxy не пересоздан (compose up failed)" >&2
+    fi
+  else
+    echo "  ERROR: compose nginx-proxy невалиден — пересоздание пропущено" >&2
+    exit 1
+  fi
+fi
 
 # ================================================================
 # Hermes Studio
