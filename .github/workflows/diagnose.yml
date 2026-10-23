@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   diagnose:
@@ -15,34 +15,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Собрать отчёт с VPS (read-only)
-        continue-on-error: true
-        run: |
-          mkdir -p ~/.ssh reports
-          printf '%s\n' "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/vps_key
-          chmod 600 ~/.ssh/vps_key
-          ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
-            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
-            'bash /opt/infra-gitops/scripts/diagnose-infra.sh' > reports/latest.md 2>&1
-          printf 'отчёт собран, байт: '; wc -c < reports/latest.md
+      - name: Диагностика и публикация отчёта (на хосте)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          script: bash /opt/infra-gitops/scripts/publish-diag.sh
+          command_timeout: 5m
+          request_pty: false
+          capture_stdout: true
 
-      - name: Опубликовать отчёт в ветку reports/diag
+      - name: Проверить свежесть отчёта и тревоги
         run: |
-          git config user.name "infra-report"
-          git config user.email "infra-report@users.noreply.github.com"
-          git checkout -B reports/diag
-          git add -f reports/latest.md
-          git commit -m "diag: отчёт $(date -u +%FT%TZ)" || exit 0
-          git push -f origin reports/diag
-
-      - name: Проверить тревоги
-        run: |
-          if ! grep -q '^# Инфра-отчёт' reports/latest.md; then
-            echo "::error::Отчёт не собран (пусто или SSH недоступен) — смотрите шаг сбора выше"
+          mkdir -p reports
+          if ! curl -sSf -m 30 -o reports/latest.md https://raw.githubusercontent.com/sergeiivanovmore-ai/infra-gitops/reports/diag/reports/latest.md; then
+            echo "::error::Отчёт не читается из ветки reports/diag — публикация с хоста не сработала"
             exit 1
+          fi
+          if ! grep -q '^# Инфра-отчёт' reports/latest.md; then
+            echo "::error::Файл в ветке не похож на отчёт диагностики"
+            exit 1
+          fi
+          stamp=$(sed -n 's/^Снят: //p' reports/latest.md | head -1)
+          echo "отчёт снят: $stamp"
+          if [ -n "$stamp" ]; then
+            age=$(( ( $(date -u +%s) - $(date -u -d "$stamp" +%s) ) / 60 ))
+            echo "возраст отчёта: $age мин"
+            if [ "$age" -gt 360 ]; then
+              echo "::error::Отчёт устарел ($age мин) — ветка reports/diag не обновляется"
+              exit 1
+            fi
           fi
           if awk '/^## ТРЕВОГИ/{f=1;next} f&&/^- /{print; found=1} END{exit !found}' reports/latest.md; then
-            echo "::error::В отчёте есть тревоги — подробности в ветке reports/diag и в diag-last.md на хосте"
+            echo "::error::В отчёте есть тревоги — подробности в ветке reports/diag"
             exit 1
           fi
-          echo "тревог нет"
+          echo "отчёт свежий, тревог нет"
