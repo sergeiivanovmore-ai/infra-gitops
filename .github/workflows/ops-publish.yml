@@ -13,6 +13,12 @@ name: Ops (публикация из outbox агента)
 # approve этого ручного запуска: имя скрипта из outbox сравнивается с ним в
 # scripts/ops-publish.sh. У агента нет инструмента запуска workflow, поэтому
 # подделать подтверждение он не может — иначе --yes был бы лишь обещанием.
+#
+# СЛЕД ЗАПУСКА: агент не видит логи Actions (403 даже на публичном репозитории),
+# поэтому шаг обязан оставлять след в logs/ops-publish-boot.log из workspace
+# агента — и когда публикатор запустился, и когда решил пропустить, вместе с
+# причиной пропуска. Иначе отказ на хосте выглядит для агента как «ничего не
+# произошло», и разбор превращается в гадание.
 
 on:
   workflow_dispatch:
@@ -32,7 +38,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: "Хостовый шаг — публикация outbox и запуск заявок"
+      - name: "Хостовый шаг — публикация outbox, запуск заявок и след в логе"
         uses: appleboy/ssh-action@v1
         env:
           OPS_APPROVE: ${{ github.event.inputs.approve }}
@@ -45,8 +51,17 @@ jobs:
           request_pty: false
           capture_stdout: true
           script: |
-            if [ -f /opt/infra-gitops/scripts/ops-publish.sh ]; then
-              bash /opt/infra-gitops/scripts/ops-publish.sh
+            LOG=/opt/docker/hermes-sysadmin/data/logs/ops-publish-boot.log
+            TS=$(date -Iseconds)
+            echo "[$TS] шаг начался: user=$(id -un) uid=$(id -u)" >> "$LOG" 2>&1
+            SCRIPT=/opt/infra-gitops/scripts/ops-publish.sh
+            if [ -f "$SCRIPT" ]; then
+              echo "[$TS] публикатор найден ($(wc -c < "$SCRIPT") байт), запускаю" >> "$LOG" 2>&1
+              bash "$SCRIPT"; RC=$?
+              echo "[$TS] публикатор завершён rc=$RC" >> "$LOG" 2>&1
             else
-              echo "ops-publish.sh ещё не в main — пропуск"
+              echo "[$TS] ПРОПУСК: $SCRIPT не найден" >> "$LOG" 2>&1
+              echo "[$TS] смотрю, что есть на хосте:" >> "$LOG" 2>&1
+              ls -la /opt/infra-gitops 2>&1 | head -15 >> "$LOG" 2>&1
+              ls -la /opt/infra-gitops/scripts 2>&1 | head -25 >> "$LOG" 2>&1
             fi
