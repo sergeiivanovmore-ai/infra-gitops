@@ -13,9 +13,18 @@ services:
     environment:
       HERMES_WRITE_SAFE_ROOT: /opt/data/workspace:/opt/data/scripts:/opt/data/memories:/opt/data/logs:/opt/data/cron:/tmp
 
+      # --- Включаем Dashboard и разрешаем доступ через ваш домен ---
+      HERMES_DASHBOARD: "1"
+      # Замените hermes.your-domain.com на ваш реальный домен
+      HERMES_DASHBOARD_EXTRA_HOSTS: "sysadmin.jt-design.ru"
+      # (Опционально, но рекомендуется) Явно указываем публичный URL
+      HERMES_DASHBOARD_PUBLIC_URL: "https://sysadmin.jt-design.ru"
+
+      TELEGRAM_ALLOWED_USERS: "303705842"
+
     ports:
-      - "127.0.0.1:8643:8642"   # gateway (не конфликтует с hermes-gateway:8642)
-      - "127.0.0.1:9120:9119"   # dashboard (не конфликтует с 9119)
+      - "127.0.0.1:8653:8642"   # gateway (свободен)
+      - "127.0.0.1:9121:9119"   # dashboard (свободен; будет проксироваться через 
 
     volumes:
       - ./data:/opt/data
@@ -31,3 +40,6 @@ networks:
   mcp-network:
     external: true
     name: mcp-network
+
+x-audit:
+  enabled: true
