@@ -30,6 +30,10 @@ services:
       - ./data:/home/dsh/.dsh
       - ./workspace:/home/dsh/workspace
       - /usr/bin/docker:/usr/local/bin/docker:ro
+      # ── read-only окно в хост: агент читает конфиги и логи сам, без docker exec ──
+      - /opt/docker/reverse-proxy:/host/reverse-proxy:ro
+      - /opt/docker/backups:/host/backups:ro
+      - /etc/letsencrypt/live:/host/letsencrypt-live:ro
     environment:
       DOCKER_HOST: tcp://docker-socket-proxy:2375
     env_file:
