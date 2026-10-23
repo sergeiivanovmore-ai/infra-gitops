@@ -12,6 +12,10 @@ services:
       - ./auth:/etc/nginx/auth:ro
     networks:
       - vpn-net
+      # hermes-net обязателен: в ней апстримы jt-site-prod, hermes-sysadmin,
+      # hermes-work, hermes-orchestrator. Без неё nginx умирает на старте с
+      # 'host not found in upstream' и уходит в цикл рестарта — ingress ложится.
+      - hermes-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "nginx", "-t"]
@@ -23,3 +27,7 @@ services:
 networks:
   vpn-net:
     external: true
+    name: vpn-net
+  hermes-net:
+    external: true
+    name: hermes-net
