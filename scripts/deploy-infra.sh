@@ -312,12 +312,21 @@ done
 
 
 # ── Compose reverse-proxy: тоже из репо (порт, монтирования, healthcheck) ──
-# Применяем только при реальном изменении файла или если у живого nginx-proxy
-# нет healthcheck. Перед пересозданием — `docker compose config -q`: невалидный
-# compose из репо НЕ роняет ingress, деплой просто останавливается с ошибкой.
+# Пересоздание — С АВТО-ОТКАТОМ. 2026-10-23 ingress лёг именно здесь: контейнер
+# пересоздался без ручно подключённой сети hermes-net, nginx умер на резолве
+# апстримов и ушёл в цикл рестарта. Поэтому перед up -d сохраняем и файл, и
+# РАНТАЙМ-сети контейнера, а после проверяем, что nginx реально принимает
+# конфиг. Не принимает — возвращаем прежний compose, пересоздаём обратно,
+# переподключаем прежние сети. Порядок: файл -> проверка -> откат.
 RP_COMPOSE_SRC="$REPO_DIR/reverse-proxy/docker-compose.yml"
 RP_COMPOSE_DST="/opt/docker/reverse-proxy/docker-compose.yml"
+RP_BACKUP_DIR="/opt/docker/backups/reverse-proxy-conf"
 if [ -f "$RP_COMPOSE_SRC" ]; then
+  mkdir -p "$RP_BACKUP_DIR"
+  RP_PREV="$RP_BACKUP_DIR/docker-compose.yml.prev"
+  if [ -f "$RP_COMPOSE_DST" ]; then
+    cp -a "$RP_COMPOSE_DST" "$RP_PREV"
+  fi
   cp -f "$RP_COMPOSE_SRC" "$RP_COMPOSE_DST"
   echo "  copied: reverse-proxy/docker-compose.yml -> /opt/docker/reverse-proxy/"
   RP_STAMP="/opt/docker/reverse-proxy/.deploy.stamp"
@@ -326,17 +335,54 @@ if [ -f "$RP_COMPOSE_SRC" ]; then
   rp_health=$(docker inspect nginx-proxy --format '{{if .Config.Healthcheck}}{{.Config.Healthcheck.Test}}{{end}}' 2>/dev/null || echo "")
   if [ "$rp_sum_new" = "$rp_sum_old" ] && [ -n "$rp_health" ]; then
     echo "  nginx-proxy: compose без изменений, healthcheck на месте"
-  elif (cd /opt/docker/reverse-proxy && docker compose config -q); then
-    echo "  nginx-proxy: применяю compose (пересоздание контейнера, 1-2 с)"
-    if (cd /opt/docker/reverse-proxy && docker compose up -d); then
-      printf '%s\n' "$rp_sum_new" > "$RP_STAMP"
-      echo "  nginx-proxy: пересоздан"
-    else
-      echo "  ERROR: nginx-proxy не пересоздан (compose up failed)" >&2
-    fi
-  else
+  elif ! (cd /opt/docker/reverse-proxy && docker compose config -q); then
     echo "  ERROR: compose nginx-proxy невалиден — пересоздание пропущено" >&2
     exit 1
+  else
+    rp_nets_before=$(docker inspect nginx-proxy --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' 2>/dev/null || echo "")
+    echo "  nginx-proxy: пересоздаю; сети до правки: ${rp_nets_before:-нет}"
+    rp_ok=0
+    if (cd /opt/docker/reverse-proxy && docker compose up -d); then
+      for _ in $(seq 1 20); do
+        sleep 2
+        if docker exec nginx-proxy nginx -t >/dev/null 2>&1; then rp_ok=1; break; fi
+      done
+    fi
+    if [ "$rp_ok" = "1" ]; then
+      printf '%s\n' "$rp_sum_new" > "$RP_STAMP"
+      echo "  nginx-proxy: пересоздан, конфиг принимается"
+    else
+      echo "  ERROR: nginx-proxy не принимает конфиг после пересоздания — АВТО-ОТКАТ" >&2
+      if [ -f "$RP_PREV" ]; then
+        cp -a "$RP_PREV" "$RP_COMPOSE_DST"
+        echo "  откат: возвращён прежний compose"
+        (cd /opt/docker/reverse-proxy && docker compose up -d) || echo "  ERROR: пересоздание по откату не удалось" >&2
+      else
+        echo "  откат: прежнего compose нет — чинить руками" >&2
+      fi
+      for _ in 1 2 3; do
+        for net in $rp_nets_before; do
+          docker network connect "$net" nginx-proxy 2>/dev/null || true
+        done
+        sleep 2
+        rp_nets_now=$(docker inspect nginx-proxy --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' 2>/dev/null || echo "")
+        rp_all=1
+        for net in $rp_nets_before; do
+          echo "$rp_nets_now" | grep -qw "$net" || rp_all=0
+        done
+        if [ "$rp_all" = "1" ]; then break; fi
+        echo "  откат: сетей всё ещё нет ($rp_nets_now) — перезапускаю контейнер"
+        docker restart nginx-proxy >/dev/null 2>&1 || true
+        sleep 3
+      done
+      sleep 2
+      if docker exec nginx-proxy nginx -t >/dev/null 2>&1; then
+        echo "  откат: nginx снова принимает конфиг, ingress восстановлен" >&2
+      else
+        echo "  ERROR: откат НЕ ПОМОГ — нужен человек" >&2
+      fi
+      exit 1
+    fi
   fi
 fi
 
