@@ -1,0 +1,35 @@
+name: Diagnose Infrastructure
+
+on:
+  schedule:
+    - cron: '7 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Собрать отчёт с VPS (read-only)
+        run: |
+          mkdir -p ~/.ssh reports
+          printf '%s\n' "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/vps_key
+          chmod 600 ~/.ssh/vps_key
+          ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'bash /opt/infra-gitops/scripts/diagnose-infra.sh' > reports/latest.md
+          printf 'отчёт собран, байт: '; wc -c < reports/latest.md
+
+      - name: Опубликовать отчёт в ветку reports/diag
+        run: |
+          git config user.name "infra-report"
+          git config user.email "infra-report@users.noreply.github.com"
+          git checkout -B reports/diag
+          git add -f reports/latest.md
+          git commit -m "diag: отчёт $(date -u +%FT%TZ)" || exit 0
+          git push -f origin reports/diag
