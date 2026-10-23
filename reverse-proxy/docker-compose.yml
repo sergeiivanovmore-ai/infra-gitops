@@ -1,0 +1,25 @@
+services:
+  nginx-proxy:
+    image: nginx:1.27-alpine
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./conf.d:/etc/nginx/conf.d:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro #./data/certbot/www:/var/www/certbot:ro
+      - ./auth:/etc/nginx/auth:ro
+    networks:
+      - vpn-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  vpn-net:
+    external: true
