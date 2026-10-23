@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    # ночная сходимость: деплой идемпотентен и merge-gated, отдельный крон на
+    # хосте не нужен. 03:17 UTC — тихий час, вне окна правок.
+    - cron: '17 3 * * *'
 
 jobs:
   deploy:
