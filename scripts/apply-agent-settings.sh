@@ -27,10 +27,10 @@ normalize() {
 
 extract_block() {
   local group="$1" cfg="$2"
-  awk -v g="^$group:" '
-    $0 ~ g { in_block=1 }
-    in_block && NR > start && /^[A-Za-z_]/ && NR > start { exit }
-    in_block { print; start=NR }
+  awk -v g="$group" '
+    $0 ~ "^" g ":" { in_block=1; print; next }
+    in_block && /^[A-Za-z_]/ { exit }
+    in_block { print }
   ' "$cfg"
 }
 
@@ -112,8 +112,8 @@ PY
 
     ok=1
     if grep -q $'\t' "$TMP"; then ok=0; fi
-    top_before=$(grep -c '^[A-Za-z_][A-Za-z0-9_]*:' "$BAK" 2>/dev/null || echo 0)
-    top_after=$(grep -c '^[A-Za-z_][A-Za-z0-9_]*:' "$TMP" 2>/dev/null || echo 0)
+    top_before=$(grep -c '^[A-Za-z_][A-Za-z0_9]*:' "$BAK" 2>/dev/null || echo 0)
+    top_after=$(grep -c '^[A-Za-z_][A-Za-z0_9]*:' "$TMP" 2>/dev/null || echo 0)
     if [ "$top_before" != "$top_after" ]; then ok=0; fi
     if ! grep -q "^$G:" "$TMP"; then ok=0; fi
     if [ "$ok" -eq 0 ]; then
@@ -124,8 +124,10 @@ PY
       continue
     fi
 
+    mv -f "$TMP" "$CFG" || { LOG "    ОШИБКА установки -- восстанавливаю из копии"; cp -a "$BAK" "$CFG"; errors=$((errors+1)); rm -f "$BAK"; continue; }
+
     LOG "    diff:"
-    diff -u "$BAK" "$TMP" | sed 's/^/      /' || true
+    diff -u "$BAK" "$CFG" | sed 's/^/      /' || true
     LOG "    изменено: $A / $G"
 
     ST=$(docker inspect "$CONT" --format '{{.State.Running}}' 2>/dev/null || echo false)
@@ -139,7 +141,6 @@ PY
       LOG "    контейнер не запущен -- перезапуск не требуется"
     fi
 
-    rm -f "$BAK"
   done
 done
 
