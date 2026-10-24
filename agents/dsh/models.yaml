@@ -4,4 +4,4 @@ kind: dsh
 config: /opt/docker/dsh/data/settings.yaml
 restart: dsh
 dsh_provider: openrouter
-dsh_model: nvidia/nemotron-3-ultra-550b-a55b:free
+dsh_model: minimax/minimax-m3.1-flash
