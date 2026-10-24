@@ -92,7 +92,7 @@ for i, l in enumerate(lines):
         if end is None:
             end = len(lines)
         break
-override_lines = override_content.rstrip('\n').split('\n')
+override_lines = [l for l in override_content.rstrip('\n').split('\n') if l.strip() and not l.lstrip().startswith('#')]
 if start is None:
     if lines and lines[-1].strip():
         lines.append('')
@@ -112,8 +112,8 @@ PY
 
     ok=1
     if grep -q $'\t' "$TMP"; then ok=0; fi
-    top_before=$(grep -c '^[A-Za-z_][A-Za-z0_9]*:' "$BAK" 2>/dev/null || echo 0)
-    top_after=$(grep -c '^[A-Za-z_][A-Za-z0_9]*:' "$TMP" 2>/dev/null || echo 0)
+    top_before=$(grep -c '^[A-Za-z_][A-Za-z0-9]*:' "$BAK" 2>/dev/null || echo 0)
+    top_after=$(grep -c '^[A-Za-z_][A-Za-z0-9]*:' "$TMP" 2>/dev/null || echo 0)
     if [ "$top_before" != "$top_after" ]; then ok=0; fi
     if ! grep -q "^$G:" "$TMP"; then ok=0; fi
     if [ "$ok" -eq 0 ]; then
