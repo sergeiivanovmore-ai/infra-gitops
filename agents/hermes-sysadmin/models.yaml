@@ -1,0 +1,7 @@
+# Модель агента hermes-sysadmin. Применяется scripts/apply-agent-models.sh
+# из хвоста деплоя: меняются ТОЛЬКО перечисленные здесь ключи.
+kind: hermes
+config: /opt/docker/hermes-sysadmin/data/config.yaml
+restart: hermes-sysadmin
+model_provider: openrouter
+model_default: deepseek/deepseek-v4.1-flash
