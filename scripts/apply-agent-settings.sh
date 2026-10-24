@@ -114,7 +114,8 @@ PY
     if grep -q $'\t' "$TMP"; then ok=0; fi
     top_before=$(grep -c '^[A-Za-z_][A-Za-z0-9]*:' "$BAK" 2>/dev/null || echo 0)
     top_after=$(grep -c '^[A-Za-z_][A-Za-z0-9]*:' "$TMP" 2>/dev/null || echo 0)
-    if [ "$top_before" != "$top_after" ]; then ok=0; fi
+    if grep -q "^$G:" "$BAK"; then exp_after=$top_before; else exp_after=$((top_before + 1)); fi
+    if [ "$top_after" != "$exp_after" ]; then ok=0; fi
     if ! grep -q "^$G:" "$TMP"; then ok=0; fi
     if [ "$ok" -eq 0 ]; then
       LOG "    Структурная проверка провалена -- откат из копии"
