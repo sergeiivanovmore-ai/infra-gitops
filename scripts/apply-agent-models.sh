@@ -2,7 +2,7 @@
 # Применение моделей из agents/<агент>/models.yaml к конфигам агентов на хосте.
 #
 # Запускается из хвоста деплоя (scripts/ops-publish-entry.sh), поэтому
-# действует только то, что лежит в main репозитория.
+# действует только то, что лежит в main репозитории.
 #
 # СВОЙСТВА, ЗАШИТЫЕ В КОД (не в обещания):
 #   - меняет ТОЛЬКО перечисленные в models.yaml ключи модели и провайдера;
@@ -47,7 +47,7 @@ for f in "$AGENTS_DIR"/*/models.yaml; do
   bak="$BACKUP_ROOT/$agent-config.yaml.$TS"
   cp -a "$cfg" "$bak" || { say "  не сделать копию — пропуск"; continue; }
   tmp=$(mktemp "$cfg.XXXXXX") || { say "  warn: cannot create temp file -- skip"; continue; }
-  cp -a "$cfg" "$tmp"
+  cp -a "$cfg" "$tmp" || { say "  warn: cannot seed temp file -- skip"; rm -f "$tmp"; continue; }
   trap 'rm -f "$tmp"' EXIT
 
   python3 - "$f" "$tmp" <<'PY'
