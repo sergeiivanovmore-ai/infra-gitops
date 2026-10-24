@@ -4,4 +4,4 @@ kind: dsh
 config: /opt/docker/dsh/data/settings.yaml
 restart: dsh
 dsh_provider: openrouter
-dsh_model: deepseek/deepseek-v4-flash
+dsh_model: minimax/minimax-m3.1-flash
