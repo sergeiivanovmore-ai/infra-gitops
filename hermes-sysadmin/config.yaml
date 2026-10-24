@@ -1188,4 +1188,5 @@ dashboard:
     username: "hermes_admin"          # можете оставить тот же логин, что и в htpasswd
     password_hash: "scrypt$16384$8$1$1cLU4fblcAVEyhRCf2sWkA==$YL/7QACTAszCqmgUexEPn3zGVi70ELtHUoGKB+xJsAg="  # вставьте хеш из Шага 1
 
-
+cron:
+  wrap_response: false
