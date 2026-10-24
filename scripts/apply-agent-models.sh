@@ -69,7 +69,7 @@ if spec.get('kind', 'hermes') == 'dsh':
              ('agent-default-model', 'provider', spec.get('dsh_provider'))]
 else:
     pairs = [('model', 'default', spec.get('model_default')),
-             ('model', 'provider', spec.get('model_provider')),
+             ('model', 'processor', spec.get('model_provider')),
              ('auxiliary', 'openrouter_model', spec.get('auxiliary_openrouter_model')),
              ('auxiliary', 'free_only', spec.get('auxiliary_free_only'))]
 
