@@ -133,3 +133,22 @@ if [ -f "$MODELS_APPLY" ]; then
 else
   say "[$TS] -- $MODELS_APPLY не найден, пропуск --"
 fi
+
+# --- проверка здоровья VPS -------------------------------------------------
+# Отчёт пишется в канал «хост -> агент»; код возврата делает красный прогон
+# независимым каналом оповещения (не зависит от того, жив ли агент).
+HEALTH=/opt/infra-gitops/scripts/health-check.sh
+HEALTH_RC=0
+if [ -f "$HEALTH" ]; then
+  say "[$TS] -- здоровье VPS --"
+  bash "$HEALTH" --install-cron || true
+  bash "$HEALTH" || HEALTH_RC=$?
+  if [ "$HEALTH_RC" -ne 0 ]; then
+    say "[$TS] -- здоровье: есть отклонения P1/CI (код $HEALTH_RC) --"
+  else
+    say "[$TS] -- здоровье: в норме --"
+  fi
+else
+  say "[$TS] -- $HEALTH не найден, пропуск --"
+fi
+exit "$HEALTH_RC"
