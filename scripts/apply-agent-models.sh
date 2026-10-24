@@ -47,6 +47,7 @@ for f in "$AGENTS_DIR"/*/models.yaml; do
   bak="$BACKUP_ROOT/$agent-config.yaml.$TS"
   cp -a "$cfg" "$bak" || { say "  не сделать копию — пропуск"; continue; }
   tmp=$(mktemp "$cfg.XXXXXX") || { say "  warn: cannot create temp file -- skip"; continue; }
+  cp -a "$cfg" "$tmp"
   trap 'rm -f "$tmp"' EXIT
 
   python3 - "$f" "$tmp" <<'PY'
