@@ -408,12 +408,6 @@ if [ -f "$RP_COMPOSE_SRC" ]; then
 fi
 
 # ================================================================
-# Hermes Studio
-# ================================================================
-mkdir -p /opt/docker/hermes-studio/data
-cp -f "$REPO_DIR/docker/docker-compose.studio.yml" /opt/docker/hermes-studio/docker-compose.yml
-echo "  copied: docker-compose.studio.yml -> /opt/docker/hermes-studio/"
-cd /opt/docker/hermes-studio && docker compose up -d
 
 # ================================================================
 # nginx reload — ПОСЛЕ старта всех сервисов
