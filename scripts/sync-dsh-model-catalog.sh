@@ -10,6 +10,8 @@ CFG="${1:-/opt/docker/dsh/data/settings.yaml}"
 BACKUP=/root/dsh-model-backups
 RESTART=dsh
 TS=$(date +%Y%m%d-%H%M%S)
+OWNER=${DSH_CONFIG_OWNER:-10001:10001}
+fix_owner() { chown "$OWNER" "$1" 2>/dev/null; chmod 600 "$1" 2>/dev/null; [ "$(stat -c '%u:%g' "$1" 2>/dev/null)" = "$OWNER" ] || say "  warn: owner/permissions not set on $1"; }
 say() { echo "[dsh-catalog] $*"; }
 
 [ -f "$CAT" ] || { say "нет $CAT - пропуск"; exit 0; }
@@ -18,8 +20,8 @@ mkdir -p "$BACKUP"
 BAK="$BACKUP/settings.yaml.$TS"
 cp -a "$CFG" "$BAK" || { say "не сделать копию - пропуск"; exit 1; }
 
-TMP="$CFG.new.$$"
-rm -f "$TMP"
+TMP=$(mktemp "$CFG.XXXXXX") || { say "cannot create temp file - skip"; rm -f "$BAK"; exit 1; }
+trap 'rm -f "$TMP"' EXIT
 cat "$CFG" > "$TMP" || { say "не создать временный файл - пропуск"; rm -f "$BAK"; exit 1; }
 
 python3 - "$CAT" "$TMP" <<'PY'
@@ -70,14 +72,15 @@ if [ "$rc" -eq 10 ]; then
 fi
 if [ "$rc" -ne 0 ] || cmp -s "$TMP" "$CFG"; then
   say "ОШИБКА правки - восстанавливаю из копии"
-  cp -a "$BAK" "$CFG"
+  cp -a "$BAK" "$CFG"; fix_owner "$CFG"
   rm -f "$TMP"
   exit 1
 fi
 say "diff:"
 diff "$CFG" "$TMP" | sed 's/^/    /'
 chmod --reference="$BAK" "$TMP" 2>/dev/null || true
-mv -f "$TMP" "$CFG" || { say "ОШИБКА установки - восстанавливаю"; cp -a "$BAK" "$CFG"; exit 1; }
+mv -f "$TMP" "$CFG" || { say "ОШИБКА установки - восстанавливаю"; cp -a "$BAK" "$CFG"; fix_owner "$CFG"; exit 1; }
+fix_owner "$CFG"
 say "записано: $CFG (копия: $BAK)"
 st=$(docker inspect "$RESTART" --format '{{.State.Status}}' 2>/dev/null || echo none)
 if [ "$st" = "running" ]; then
