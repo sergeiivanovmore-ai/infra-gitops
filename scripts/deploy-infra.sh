@@ -42,6 +42,20 @@ agent_running() {
   [ "$(docker inspect "$1" --format '{{.State.Running}}' 2>/dev/null)" = "true" ]
 }
 
+# --- compose_changed / compose_stamp_save: пересоздавать только по делу -------
+# Метка хранится рядом с compose, в файле .deploy.stamp. Нет метки — считаем,
+# что compose изменился: лишнее пересоздание один раз безопаснее пропуска.
+compose_changed() {
+  local dir="$1" cur old
+  cur=$(md5sum "$dir/docker-compose.yml" 2>/dev/null | cut -d' ' -f1)
+  old=$(cat "$dir/.deploy.stamp" 2>/dev/null || echo "")
+  [ -n "$cur" ] && [ "$cur" != "$old" ]
+}
+
+compose_stamp_save() {
+  md5sum "$1/docker-compose.yml" 2>/dev/null | cut -d' ' -f1 > "$1/.deploy.stamp" 2>/dev/null || true
+}
+
 # agent_recreate_ok <container>
 agent_recreate_ok() {
   local ctr="$1"
@@ -258,7 +272,12 @@ fi
 # Restart
 # ================================================================
 if agent_recreate_ok hermes-gateway; then
-  cd /opt/docker/hermes && docker compose up -d --force-recreate
+  if compose_changed /opt/docker/hermes; then
+    cd /opt/docker/hermes && docker compose up -d --force-recreate
+    compose_stamp_save /opt/docker/hermes
+  else
+    echo "  hermes-gateway: compose без изменений — пересоздание не требуется"
+  fi
 else
   echo "  skipped: hermes-gateway (agents disabled)"
 fi
