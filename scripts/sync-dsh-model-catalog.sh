@@ -11,7 +11,7 @@ BACKUP=/root/dsh-model-backups
 RESTART=dsh
 TS=$(date +%Y%m%d-%H%M%S)
 OWNER=${DSH_CONFIG_OWNER:-10001:10001}
-fix_owner() { chown "$OWNER" "$1" 2>/dev/null && chmod 600 "$1" 2>/dev/null || say "  warn: cannot set owner/perms on $1"; }
+fix_owner() { chown "$OWNER" "$1" 2>/dev/null; chmod 600 "$1" 2>/dev/null; [ "$(stat -c '%u:%g' "$1" 2>/dev/null)" = "$OWNER" ] || say "  warn: owner/permissions not set on $1"; }
 say() { echo "[dsh-catalog] $*"; }
 
 [ -f "$CAT" ] || { say "нет $CAT - пропуск"; exit 0; }
