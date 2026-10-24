@@ -83,10 +83,19 @@ if [ -n "${RC_PREV:-}" ] && [ "${RC_NOW:-0}" -gt "${RC_PREV:-0}" ] 2>/dev/null; 
   add p1 ingress "nginx-proxy перезапускался" "RestartCount: $RC_PREV -> $RC_NOW" "docker logs --tail 50 nginx-proxy"
 fi
 SITE=$(th site_host jt-design.ru)
-CODE=$(curl -s -o /dev/null -w '%{http_code}' -m "$(th http_timeout_sec 10)" -H "Host: $SITE" http://127.0.0.1/ 2>/dev/null || echo 000)
+TIMEOUT=$(th http_timeout_sec 10)
+# Смотрим глазами посетителя: https с нужным хостом, через loopback, чтобы не зависеть от DNS.
+# Раньше шёл http, переадресация 301 на https давала ложный P1.
+CODE=$(curl -sk -o /dev/null -w '%{http_code}' -m "$TIMEOUT" --resolve "$SITE:443:127.0.0.1" "https://$SITE/" 2>/dev/null || echo 000)
 if [ "$CODE" != "200" ]; then
-  add p1 ingress "вход через nginx-proxy не отвечает 200" "http: 200 -> $CODE" "curl -I -H 'Host: $SITE' http://127.0.0.1/"
+  add p1 ingress "вход через nginx-proxy не отвечает 200" "https: 200 -> $CODE" "curl -skI --resolve $SITE:443:127.0.0.1 https://$SITE/"
 fi
+# Переадресация http -> https штатна; необычные коды — предупреждение, не тревога.
+HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -m "$TIMEOUT" -H "Host: $SITE" http://127.0.0.1/ 2>/dev/null || echo 000)
+case "$HTTP_CODE" in
+  200|301|302) : ;;
+  *) add p2 ingress "http-вход ведёт себя необычно" "http: 200/301 -> $HTTP_CODE" "curl -I -H 'Host: $SITE' http://127.0.0.1/" ;;
+esac
 printf 'restarts=%s\n' "${RC_NOW:-0}" > "$PREV" 2>/dev/null || true
 
 # --- 4. диск ---
