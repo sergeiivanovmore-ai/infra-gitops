@@ -1,6 +1,6 @@
 #!/bin/bash
 # Принудительно выставляет владельца и права на конфиги агентов.
-# Снимае�� последствия cp/mv деплоя: файл от root становится читаемым контейнеру.
+# Undo the effect of deploy cp/mv: a root-owned config becomes readable by the container.
 # Идемпотентно, запускается из хвоста деплоя и вручную.
 #
 # Использование: bash fix-config-owners.sh [--dry-run]
