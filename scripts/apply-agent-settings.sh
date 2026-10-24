@@ -20,7 +20,7 @@ BACKUP_DIR=/root/agent-settings-backups
 APPLIED_DIR=/root/agent-settings-applied
 TS=$(date -u +%Y%m%d-%H%M%S)
 CONFIG_OWNER=${AGENT_CONFIG_OWNER:-10000:10000}
-fix_owner() { chown "$CONFIG_OWNER" "$1" 2>/dev/null && chmod 600 "$1" 2>/dev/null || LOG "    warn: cannot set owner/perms on $1"; }
+fix_owner() { chown "$CONFIG_OWNER" "$1" 2>/dev/null; chmod 600 "$1" 2>/dev/null; [ "$(stat -c '%u:%g' "$1" 2>/dev/null)" = "$CONFIG_OWNER" ] || LOG "    warn: owner/permissions not set on $1"; }
 restore() { cp -a "$BAK" "$CFG"; fix_owner "$CFG"; }
 
 LOG() { echo "[settings] $*"; }
