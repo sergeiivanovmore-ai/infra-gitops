@@ -2,7 +2,7 @@
 # Наложение оверрайдов настроек из agents/<агент>/settings/*.yaml на конфиги агентов.
 #
 # Запускается из хвоста деплоя (scripts/ops-publish-entry.sh), поэтому
-# действует только то, что лежит в main репозитории.
+# действует только то, что лежит в main репозитория.
 #
 # СВОЙСТВА, ЗАШИТЫЕ В КОД (не в обещания):
 #   - меняет ТОЛЬКО блоки групп из agents/*/settings/<группа>.yaml;
@@ -159,7 +159,6 @@ PY
     chmod --reference="$BAK" "$TMP" 2>/dev/null || true
     mv -f "$TMP" "$CFG" || { LOG "    ОШИБКА установки -- восстанавливаю из копии"; restore; errors=$((errors+1)); rm -f "$BAK"; continue; }
 fix_owner "$CFG"
-
     LOG "    diff:"
     diff -u "$BAK" "$CFG" | sed 's/^/      /' || true
     LOG "    изменено: $A / $G"
