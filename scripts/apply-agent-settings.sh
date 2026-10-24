@@ -159,6 +159,7 @@ PY
     chmod --reference="$BAK" "$TMP" 2>/dev/null || true
     mv -f "$TMP" "$CFG" || { LOG "    ОШИБКА установки -- восстанавливаю из копии"; restore; errors=$((errors+1)); rm -f "$BAK"; continue; }
 fix_owner "$CFG"
+
     LOG "    diff:"
     diff -u "$BAK" "$CFG" | sed 's/^/      /' || true
     LOG "    изменено: $A / $G"
