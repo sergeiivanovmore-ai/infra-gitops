@@ -84,10 +84,13 @@ if [ -n "${RC_PREV:-}" ] && [ "${RC_NOW:-0}" -gt "${RC_PREV:-0}" ] 2>/dev/null; 
 fi
 SITE=$(th site_host jt-design.ru)
 TIMEOUT=$(th http_timeout_sec 10)
+# Смотрим глазами посетителя: https с нужным хостом, через loopback, чтобы не зависеть от DNS.
+# Раньше шёл http, переадресация 301 на https давала ложный P1.
 CODE=$(curl -sk -o /dev/null -w '%{http_code}' -m "$TIMEOUT" --resolve "$SITE:443:127.0.0.1" "https://$SITE/" 2>/dev/null || echo 000)
 if [ "$CODE" != "200" ]; then
   add p1 ingress "вход через nginx-proxy не отвечает 200" "https: 200 -> $CODE" "curl -skI --resolve $SITE:443:127.0.0.1 https://$SITE/"
 fi
+# Переадресация http -> https штатна; необычные коды — предупреждение, не тревога.
 HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -m "$TIMEOUT" -H "Host: $SITE" http://127.0.0.1/ 2>/dev/null || echo 000)
 case "$HTTP_CODE" in
   200|301|302) : ;;
@@ -145,10 +148,7 @@ for F in "$REPO"/agents/*/models.yaml; do
 done
 
 # --- внешние проверки: домены, сертификаты, почта ---
-export HEALTH_SETS="$OVERRIDES"
-if [ -f "$REPO/scripts/health-checks/extra.sh" ]; then
-  CHECKS=$(bash "$REPO/scripts/health-checks/extra.sh" "$FIND" "$CHECKS" 2>/dev/null || echo "$CHECKS")
-fi
+[ -f "$REPO/scripts/health-checks/extra.sh" ] && CHECKS=$(HEALTH_SETS="$OVERRIDES" bash "$REPO/scripts/health-checks/extra.sh" "$FIND" "$CHECKS" 2>>"$OUT_DIR/health-modules.err" || echo "$CHECKS")
 
 # --- сборка отчёта ---
 python3 - "$FIND" "$MD" "$JS" "$TS" "$NODE" "$CHECKS" <<'PY'
