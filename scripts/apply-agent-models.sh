@@ -2,7 +2,7 @@
 # Применение моделей из agents/<агент>/models.yaml к конфигам агентов на хосте.
 #
 # Запускается из хвоста деплоя (scripts/ops-publish-entry.sh), поэтому
-# действует только то, что лежит в main репозитория.
+# действует только то, что лежит в main репозитории.
 #
 # СВОЙСТВА, ЗАШИТЫЕ В КОД (не в обещания):
 #   - меняет ТОЛЬКО перечисленные в models.yaml ключи модели и провайдера;
@@ -21,7 +21,7 @@ AGENTS_DIR="$REPO/agents"
 BACKUP_ROOT=/root/agent-model-backups
 TS=$(date +%Y%m%d-%H%M%S)
 CONFIG_OWNER=${AGENT_CONFIG_OWNER:-10000:10000}
-fix_owner() { chown "$CONFIG_OWNER" "$1" 2>/dev/null && chmod 600 "$1" 2>/dev/null || say "  warn: cannot set owner/perms on $1"; }
+fix_owner() { chown "$CONFIG_OWNER" "$1" 2>/dev/null; chmod 600 "$1" 2>/dev/null; [ "$(stat -c '%u:%g' "$1" 2>/dev/null)" = "$CONFIG_OWNER" ] || say "  warn: owner/permissions not set on $1"; }
 DRY=0
 [ "${1:-}" = "--dry-run" ] && DRY=1
 
@@ -171,7 +171,7 @@ PY
   say "  copy: $bak"
   chmod --reference="$bak" "$tmp" 2>/dev/null || true
   mv -f "$tmp" "$cfg" || { say "  warn: install failed -- rollback from backup"; cp -a "$bak" "$cfg"; fix_owner "$cfg"; continue; }
-  fix_owner "$cfg"
+  fix_owner "$CFG"
 
   st=$(docker inspect "$restart" --format '{{.State.Status}}' 2>/dev/null || echo none)
   if [ "$st" = "running" ]; then
