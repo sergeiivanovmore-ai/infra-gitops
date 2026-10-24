@@ -33,6 +33,27 @@ if [ -f /opt/docker/hermes/.agents_disabled ]; then
   echo "  AGENTS_DISABLED: standalone agents will not be started"
 fi
 
+# --- agent_recreate_ok: обновлять агента, даже когда глобальный флаг выключен ---
+# Раньше правка compose для агента доезжала на диск и не применялась: блок стоял
+# под AGENTS_ENABLED, поэтому контейнер не пересоздавался. Теперь файлы
+# обновляются всегда, а контейнер пересоздаётся, только если он УЖЕ запущен:
+# намеренно остановленного агента деплой не воскрешает.
+agent_running() {
+  [ "$(docker inspect "$1" --format '{{.State.Running}}' 2>/dev/null)" = "true" ]
+}
+
+# agent_recreate_ok <container>
+agent_recreate_ok() {
+  local ctr="$1"
+  if [ "${AGENTS_ENABLED:-1}" = "1" ]; then return 0; fi
+  if agent_running "$ctr"; then
+    echo "  $ctr: контейнер запущен, обновляю несмотря на AGENTS_DISABLED"
+    return 0
+  fi
+  echo "  $ctr: не запущен и агенты отключены, пропуск"
+  return 1
+}
+
 echo "=== Deploy started at $(date -Iseconds) ==="
 
 cd "$REPO_DIR"
@@ -236,7 +257,7 @@ fi
 # ================================================================
 # Restart
 # ================================================================
-if [ "$AGENTS_ENABLED" = "1" ]; then
+if agent_recreate_ok hermes-gateway; then
   cd /opt/docker/hermes && docker compose up -d --force-recreate
 else
   echo "  skipped: hermes-gateway (agents disabled)"
@@ -251,7 +272,7 @@ if [ "$AGENTS_ENABLED" = "1" ]; then
     || echo "  WARN: failed to enable a2a toolset (non-fatal)"
 fi
 
-if [ "$AGENTS_ENABLED" = "1" ]; then
+if agent_recreate_ok hermes-sysadmin; then
   cd /opt/docker/hermes-sysadmin && docker compose up -d
 fi
 # ── dsh: следует за репозиторием, даже когда standalone-агенты отключены ──
