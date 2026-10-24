@@ -2,7 +2,7 @@
 # Применение моделей из agents/<агент>/models.yaml к конфигам агентов на хосте.
 #
 # Запускается из хвоста деплоя (scripts/ops-publish-entry.sh), поэтому
-# действует только то, что лежит в main репозитория.
+# действует только то, что лежит в main репозитории.
 #
 # СВОЙСТВА, ЗАШИТЫЕ В КОД (не в обещания):
 #   - меняет ТОЛЬКО перечисленные в models.yaml ключи модели и провайдера;
@@ -100,7 +100,7 @@ for block, key, value in pairs:
             lines.append('')
         lines.append(block + ':')
         lines.append('  ' + key + ': ' + fmt(value))
-        changes.append('+ ' + block + '.' + key + ' = ' + value + ' (блок созда��)')
+        changes.append('+ ' + block + '.' + key + ' = ' + value + ' (блок создан)')
         continue
     indent = '  '
     for j in range(start + 1, end):
