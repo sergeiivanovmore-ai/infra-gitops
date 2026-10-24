@@ -2,7 +2,7 @@
 # Применение моделей из agents/<агент>/models.yaml к конфигам агентов на хосте.
 #
 # Запускается из хвоста деплоя (scripts/ops-publish-entry.sh), поэтому
-# действует только то, что лежит в main репозитории.
+# действует только то, что лежит в main репозитория.
 #
 # СВОЙСТВА, ЗАШИТЫЕ В КОД (не в обещания):
 #   - меняет ТОЛЬКО перечисленные в models.yaml ключи модели и провайдера;
@@ -171,7 +171,7 @@ PY
   say "  copy: $bak"
   chmod --reference="$bak" "$tmp" 2>/dev/null || true
   mv -f "$tmp" "$cfg" || { say "  warn: install failed -- rollback from backup"; cp -a "$bak" "$cfg"; fix_owner "$cfg"; continue; }
-  fix_owner "$CFG"
+  fix_owner "$cfg"
 
   st=$(docker inspect "$restart" --format '{{.State.Status}}' 2>/dev/null || echo none)
   if [ "$st" = "running" ]; then
