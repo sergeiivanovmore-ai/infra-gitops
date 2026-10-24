@@ -1138,36 +1138,6 @@ onboarding:
     profile_build_offered: true
     busy_input_prompt: true
 
-approvals:
-  mode: smart
-  timeout: 600
-  enabled: true
-  require_approval: true
-  auto_approve_all: false
-  deny:
-    - "rm -rf /*"
-    - "rm -rf /etc*"
-    - "rm -rf /var*"
-    - "rm -rf /opt*"
-    - "rm -rf /home*"
-    - "rm -rf /root*"
-    - "dd if=*"
-    - "dd of=/dev/*"
-    - "mkfs*"
-    - "chmod -R 777 /*"
-    - "chown -R * /*"
-    - "docker system prune*"
-    - "docker volume prune*"
-    - "docker image prune -a*"
-    - "shutdown*"
-    - "reboot*"
-    - "halt*"
-    - "poweroff*"
-    - "systemctl poweroff*"
-    - "userdel*"
-    - "passwd*"
-    - "visudo*"
-    - ":(){ :|:& };:"
 security:
   allow_private_urls: false
   redact_secrets: true
