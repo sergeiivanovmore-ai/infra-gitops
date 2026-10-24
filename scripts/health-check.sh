@@ -147,6 +147,9 @@ for F in "$REPO"/agents/*/models.yaml; do
   fi
 done
 
+# --- внешние проверки: домены, сертификаты, почта ---
+[ -f "$REPO/scripts/health-checks/extra.sh" ] && CHECKS=$(HEALTH_SETS="$OVERRIDES" bash "$REPO/scripts/health-checks/extra.sh" "$FIND" "$CHECKS" 2>>"$OUT_DIR/health-modules.err" || echo "$CHECKS")
+
 # --- сборка отчёта ---
 python3 - "$FIND" "$MD" "$JS" "$TS" "$NODE" "$CHECKS" <<'PY'
 import json, sys

@@ -8,3 +8,9 @@ disk_path: /
 site_host: jt-design.ru
 agent_log_error_window_min: 120
 provider_models_url: https://openrouter.ai/api/v1/models
+domains: jt-design.ru
+site_dir: /opt/docker/jt-design-site
+cert_days: 30
+mail_container: mail-relay
+mail_queue_warn: 20
+mail_queue_crit: 200
