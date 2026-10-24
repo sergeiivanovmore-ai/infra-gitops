@@ -1,0 +1,7 @@
+# Модель DSH. Формат файла другой: ключ лежит в блоке agent-default-model
+# файла settings.yaml, поэтому в скрипте для него отдельный обработчик (kind: dsh).
+kind: dsh
+config: /opt/docker/dsh/data/settings.yaml
+restart: dsh
+dsh_provider: openrouter
+dsh_model: deepseek/deepseek-v4-flash

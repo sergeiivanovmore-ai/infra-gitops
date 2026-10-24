@@ -1,0 +1,7 @@
+# Модель агента hermes-gateway. Контейнер стоит под guard'ом agents_disabled:
+# скрипт применит правку к файлу, но не запустит остановленный контейнер.
+kind: hermes
+config: /opt/docker/hermes/data/config.yaml
+restart: hermes-gateway
+model_provider: openrouter
+model_default: deepseek/deepseek-v4.1-flash

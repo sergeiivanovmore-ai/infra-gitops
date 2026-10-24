@@ -1,0 +1,8 @@
+# Модель агента hermes-orchestrator (строит сайт).
+kind: hermes
+config: /opt/docker/hermes-orchestrator/data/config.yaml
+restart: hermes-orchestrator
+model_provider: openrouter
+model_default: z-ai/glm-5.3-flash
+auxiliary_openrouter_model: z-ai/glm-5.3-flash
+auxiliary_free_only: false
