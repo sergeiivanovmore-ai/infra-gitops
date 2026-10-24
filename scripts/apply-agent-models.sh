@@ -2,7 +2,7 @@
 # Применение моделей из agents/<агент>/models.yaml к конфигам агентов на хосте.
 #
 # Запускается из хвоста деплоя (scripts/ops-publish-entry.sh), поэтому
-# действует только то, что лежит в main репозитория.
+# действует только то, что лежит в main репозитории.
 #
 # СВОЙСТВА, ЗАШИТЫЕ В КОД (не в обещания):
 #   - меняет ТОЛЬКО перечисленные в models.yaml ключи модели и провайдера;
@@ -20,6 +20,8 @@ REPO=/opt/infra-gitops
 AGENTS_DIR="$REPO/agents"
 BACKUP_ROOT=/root/agent-model-backups
 TS=$(date +%Y%m%d-%H%M%S)
+CONFIG_OWNER=${AGENT_CONFIG_OWNER:-10000:10000}
+fix_owner() { chown "$CONFIG_OWNER" "$1" 2>/dev/null && chmod 600 "$1" 2>/dev/null || say "  warn: cannot set owner/perms on $1"; }
 DRY=0
 [ "${1:-}" = "--dry-run" ] && DRY=1
 
@@ -44,10 +46,10 @@ for f in "$AGENTS_DIR"/*/models.yaml; do
 
   bak="$BACKUP_ROOT/$agent-config.yaml.$TS"
   cp -a "$cfg" "$bak" || { say "  не сделать копию — пропуск"; continue; }
-  tmp="/tmp/models.$$"
-  cp -a "$cfg" "$tmp"
+  tmp=$(mktemp "$cfg.XXXXXX") || { say "  warn: cannot create temp file -- skip"; continue; }
+  trap 'rm -f "$tmp"' EXIT
 
-  python3 - "$f" "$cfg" <<'PY'
+  python3 - "$f" "$tmp" <<'PY'
 import re, sys
 spec_path, cfg_path = sys.argv[1], sys.argv[2]
 
@@ -140,36 +142,35 @@ PY
     continue
   fi
   if [ "$rc" -ne 0 ]; then
-    say "  ОШИБКА правки — восстанавливаю из копии"
-    cp -a "$tmp" "$cfg"
+    say "  ERROR: edit failed -- live config untouched"
     rm -f "$tmp"
     continue
   fi
   if cmp -s "$tmp" "$cfg"; then
-    say "  файл не изменился — перезапуск не нужен"
+    say "  no changes -- no restart needed"
     rm -f "$tmp"
     continue
   fi
   echo "  diff:"
-  diff "$tmp" "$cfg" | sed 's/^/    /'
-  rm -f "$tmp"
-
+  diff "$cfg" "$tmp" | sed 's/^/    /'
   ok=1
   if python3 -c 'import yaml' 2>/dev/null; then
-    python3 -c "import yaml;list(yaml.safe_load_all(open('$cfg',encoding='utf-8')))" 2>/dev/null || ok=0
+    python3 -c "import yaml;list(yaml.safe_load_all(open('$tmp',encoding='utf-8')))" 2>/dev/null || ok=0
   fi
   if [ "$ok" -eq 0 ]; then
-    say "  YAML не разбирается — откат из копии"
-    cp -a "$bak" "$cfg"
+    say "  warn: YAML does not parse -- live config untouched"
+    rm -f "$tmp"
     continue
   fi
-  say "  копия: $bak"
-
   if [ "$DRY" -eq 1 ]; then
-    cp -a "$tmp" "$cfg" 2>/dev/null || cp -a "$bak" "$cfg"
-    say "  режим плана: правка показана, но не оставлена"
+    say "  dry-run: diff shown above, $cfg NOT touched"
+    rm -f "$tmp"
     continue
   fi
+  say "  copy: $bak"
+  chmod --reference="$bak" "$tmp" 2>/dev/null || true
+  mv -f "$tmp" "$cfg" || { say "  warn: install failed -- rollback from backup"; cp -a "$bak" "$cfg"; fix_owner "$cfg"; continue; }
+  fix_owner "$cfg"
 
   st=$(docker inspect "$restart" --format '{{.State.Status}}' 2>/dev/null || echo none)
   if [ "$st" = "running" ]; then
