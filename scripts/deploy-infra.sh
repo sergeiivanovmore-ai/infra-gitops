@@ -253,7 +253,7 @@ fi
 # ================================================================
 # Ensure tirith exists in gateway (copy from sysadmin if missing)
 # ================================================================
-if [ "$AGENTS_ENABLED" = "1" ] && ! docker exec hermes-gateway test -x /opt/data/bin/tirith 2>/dev/null; then
+if { [ "$AGENTS_ENABLED" = "1" ] || agent_running hermes-gateway; } && ! docker exec hermes-gateway test -x /opt/data/bin/tirith 2>/dev/null; then
   echo "  restoring tirith in gateway..."
   if docker exec hermes-sysadmin test -x /opt/data/bin/tirith 2>/dev/null; then
     docker cp hermes-sysadmin:/opt/data/bin/tirith /tmp/tirith.gw 2>/dev/null
