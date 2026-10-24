@@ -8,7 +8,7 @@
 #   - меняет ТОЛЬКО блоки групп из agents/*/settings/<группа>.yaml;
 #   - всегда делает копию конфига в /root/agent-settings-backups/ перед правкой;
 #   - при любой ошибке восстанавливает файл из копии;
-#   - если значения уже такие — файл не меняется и агент НЕ перезапускается;
+#   - перезапуск -- только если применённый конфиг отличается от уже подхваченного;
 #   - не запускает остановленные контейнеры (gateway закрыт guard'ом);
 #   - большие конфиги не пересобираются парсером YAML: правится нужный блок,
 #     остальное содержимое и комментарии остаются байт в байт.
@@ -17,6 +17,7 @@ set -u
 REPO=${REPO:-/opt/infra-gitops}
 AGENTS_DIR="$REPO/agents"
 BACKUP_DIR=/root/agent-settings-backups
+APPLIED_DIR=/root/agent-settings-applied
 TS=$(date -u +%Y%m%d-%H%M%S)
 
 LOG() { echo "[settings] $*"; }
@@ -32,6 +33,31 @@ extract_block() {
     in_block && /^[A-Za-z_]/ { exit }
     in_block { print }
   ' "$cfg"
+}
+
+settle() {
+  local A="$1" CONT="$2" CFG="$3"
+  local APPLIED="$APPLIED_DIR/$A-config.yaml"
+  mkdir -p "$APPLIED_DIR"
+  if [ -f "$APPLIED" ] && cmp -s "$APPLIED" "$CFG"; then
+    LOG "    конфиг уже подхвачен -- перезапуск не требуется"
+    return 0
+  fi
+  local ST applied_ok=0
+  ST=$(docker inspect "$CONT" --format '{{.State.Running}}' 2>/dev/null || echo false)
+  if [ "$ST" = "true" ]; then
+    if docker restart "$CONT" >/dev/null 2>&1; then
+      LOG "    перезапущен: $CONT"
+      applied_ok=1
+    else
+      LOG "    НЕ удалось перезапустить $CONT"
+    fi
+  else
+    LOG "    контейнер не запущен -- перезапуск не требуется"
+    applied_ok=1
+  fi
+  [ "$applied_ok" -eq 1 ] && cp -a "$CFG" "$APPLIED"
+  return 0
 }
 
 mkdir -p "$BACKUP_DIR"
@@ -67,6 +93,7 @@ for f in "$AGENTS_DIR"/*/models.yaml; do
     if [ "$override_norm" = "$current_norm" ]; then
       LOG "    изменений не требуется"
       rm -f "$BAK"
+      settle "$A" "$CONT" "$CFG"
       continue
     fi
 
@@ -131,16 +158,7 @@ PY
     diff -u "$BAK" "$CFG" | sed 's/^/      /' || true
     LOG "    изменено: $A / $G"
 
-    ST=$(docker inspect "$CONT" --format '{{.State.Running}}' 2>/dev/null || echo false)
-    if [ "$ST" = "true" ]; then
-      if docker restart "$CONT" >/dev/null 2>&1; then
-        LOG "    перезапущен: $CONT"
-      else
-        LOG "    НЕ удалось перезапустить $CONT"
-      fi
-    else
-      LOG "    контейнер не запущен -- перезапуск не требуется"
-    fi
+    settle "$A" "$CONT" "$CFG"
 
   done
 done
