@@ -1,0 +1,10 @@
+# Пороги мониторинга VPS. Меняются только через PR.
+# Читает scripts/health-check.sh, переопределить разово можно: --set КЛЮЧ=ЗНАЧЕНИЕ
+disk_used_percent: 80
+disk_warn_percent: 70
+inode_used_percent: 85
+http_timeout_sec: 10
+disk_path: /
+site_host: jt-design.ru
+agent_log_error_window_min: 120
+provider_models_url: https://openrouter.ai/api/v1/models
