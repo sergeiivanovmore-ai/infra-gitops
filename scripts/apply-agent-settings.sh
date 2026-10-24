@@ -2,7 +2,7 @@
 # Наложение оверрайдов настроек из agents/<агент>/settings/*.yaml на конфиги агентов.
 #
 # Запускается из хвоста деплоя (scripts/ops-publish-entry.sh), поэтому
-# действует только то, что лежит в main репозитория.
+# действует только то, что лежит в main репозитории.
 #
 # СВОЙСТВА, ЗАШИТЫЕ В КОД (не в обещания):
 #   - меняет ТОЛЬКО блоки групп из agents/*/settings/<группа>.yaml;
@@ -19,6 +19,9 @@ AGENTS_DIR="$REPO/agents"
 BACKUP_DIR=/root/agent-settings-backups
 APPLIED_DIR=/root/agent-settings-applied
 TS=$(date -u +%Y%m%d-%H%M%S)
+CONFIG_OWNER=${AGENT_CONFIG_OWNER:-10000:10000}
+fix_owner() { chown "$CONFIG_OWNER" "$1" 2>/dev/null && chmod 600 "$1" 2>/dev/null || LOG "    warn: cannot set owner/perms on $1"; }
+restore() { cp -a "$BAK" "$CFG"; fix_owner "$CFG"; }
 
 LOG() { echo "[settings] $*"; }
 
@@ -97,8 +100,8 @@ for f in "$AGENTS_DIR"/*/models.yaml; do
       continue
     fi
 
-    TMP="$CFG.new.$$"
-    rm -f "$TMP"
+    TMP=$(mktemp "$CFG.XXXXXX") || { LOG "    cannot create temp file -- skip"; errors=$((errors+1)); rm -f "$BAK"; continue; }
+    trap 'rm -f "$TMP"' EXIT
     cat "$CFG" > "$TMP" || { LOG "    не создать временный файл -- пропуск"; errors=$((errors+1)); rm -f "$BAK"; continue; }
 
     python3 - "$G" "$setting_file" "$TMP" <<'PY'
@@ -132,7 +135,7 @@ PY
     rc=$?
     if [ "$rc" -ne 0 ]; then
       LOG "    ОШИБКА правки -- восстанавливаю из копии"
-      cp -a "$BAK" "$CFG"
+      restore
       errors=$((errors+1))
       rm -f "$BAK"
       continue
@@ -147,14 +150,15 @@ PY
     if ! grep -q "^$G:" "$TMP"; then ok=0; fi
     if [ "$ok" -eq 0 ]; then
       LOG "    Структурная проверка провалена -- откат из копии"
-      cp -a "$BAK" "$CFG"
+      restore
       errors=$((errors+1))
       rm -f "$BAK"
       continue
     fi
 
     chmod --reference="$BAK" "$TMP" 2>/dev/null || true
-    mv -f "$TMP" "$CFG" || { LOG "    ОШИБКА установки -- восстанавливаю из копии"; cp -a "$BAK" "$CFG"; errors=$((errors+1)); rm -f "$BAK"; continue; }
+    mv -f "$TMP" "$CFG" || { LOG "    ОШИБКА установки -- восстанавливаю из копии"; restore; errors=$((errors+1)); rm -f "$BAK"; continue; }
+fix_owner "$CFG"
 
     LOG "    diff:"
     diff -u "$BAK" "$CFG" | sed 's/^/      /' || true
