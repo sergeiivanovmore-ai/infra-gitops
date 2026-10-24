@@ -1,0 +1,19 @@
+# Каталог моделей DSH (провайдер pi-ai / openrouter).
+# Скрипт scripts/apply-agent-models.sh приводит каталог в settings.yaml к этому списку:
+# добавляет отсутствующие записи и удаляет те, что помечены в retired.
+models:
+  - id: nvidia/nemotron-3-ultra-550b-a55b:free
+  - id: nvidia/nemotron-3-super-120b-a12b:free
+  - id: minimax/minimax-m2.7:free
+  - id: xiaomi/mimo-v2-flash:free
+  - id: stepfun/step-3.5-flash:free
+  - id: deepseek/deepseek-v4-flash
+  - id: deepseek/deepseek-v3.2
+  - id: z-ai/glm-5.3-flash
+  - id: qwen/qwen3-next-80b-a3b-instruct
+  - id: minimax/minimax-m2.7
+  - id: xiaomi/mimo-v2-flash
+  - id: stepfun/step-3.5-flash
+  - id: minimax/minimax-m3.1-flash
+retired:
+  - id: minimax/minimax-m3.1-flash:free

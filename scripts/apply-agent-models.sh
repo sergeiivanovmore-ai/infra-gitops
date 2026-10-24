@@ -38,6 +38,10 @@ for f in "$AGENTS_DIR"/*/models.yaml; do
     continue
   fi
 
+  if grep -q '^kind:[[:space:]]*dsh' "$f"; then
+    bash "$REPO/scripts/sync-dsh-model-catalog.sh" "$cfg" || true
+  fi
+
   bak="$BACKUP_ROOT/$agent-config.yaml.$TS"
   cp -a "$cfg" "$bak" || { say "  не сделать копию — пропуск"; continue; }
   tmp="/tmp/models.$$"
