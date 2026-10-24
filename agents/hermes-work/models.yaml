@@ -1,0 +1,8 @@
+# Модель агента hermes-work.
+kind: hermes
+config: /opt/docker/hermes-work/data/config.yaml
+restart: hermes-work
+model_provider: openrouter
+model_default: z-ai/glm-5.3-flash
+auxiliary_openrouter_model: z-ai/glm-5.3-flash
+auxiliary_free_only: false
