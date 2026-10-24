@@ -118,3 +118,18 @@ if [ -f "$SITE_SYNC" ]; then
 else
   say "[$TS] -- сайт: $SITE_SYNC не найден, пропуск --"
 fi
+
+# --- модели агентов из agents/*/models.yaml --------------------------------
+# Файлы-оверрайды лежат в репозитории; скрипт меняет только ключи модели и
+# провайдера, делает копию конфига и перезапускает агента лишь при изменении.
+MODELS_APPLY=/opt/infra-gitops/scripts/apply-agent-models.sh
+if [ -f "$MODELS_APPLY" ]; then
+  say "[$TS] -- модели агентов из GitOps --"
+  if timeout 300 bash "$MODELS_APPLY"; then
+    say "[$TS] -- модели применены --"
+  else
+    say "[$TS] -- применение моделей завершилось с ошибкой (деплой не затронут) --"
+  fi
+else
+  say "[$TS] -- $MODELS_APPLY не найден, пропуск --"
+fi
