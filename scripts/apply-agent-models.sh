@@ -2,7 +2,7 @@
 # Применение моделей из agents/<агент>/models.yaml к конфигам агентов на хосте.
 #
 # Запускается из хвоста деплоя (scripts/ops-publish-entry.sh), поэтому
-# действует только то, что лежит в main репозитория.
+# действует только то, что лежит в main репозитории.
 #
 # СВОЙСТВА, ЗАШИТЫЕ В КОД (не в обещания):
 #   - меняет ТОЛЬКО перечисленные в models.yaml ключи модели и провайдера;
@@ -36,6 +36,10 @@ for f in "$AGENTS_DIR"/*/models.yaml; do
   if [ -z "$cfg" ] || [ ! -f "$cfg" ]; then
     say "  конфиг не найден (${cfg:-не задан}) — пропуск"
     continue
+  fi
+
+  if grep -q '^kind:[[:space:]]*dsh' "$f"; then
+    bash "$REPO/scripts/sync-dsh-model-catalog.sh" "$cfg" || true
   fi
 
   bak="$BACKUP_ROOT/$agent-config.yaml.$TS"
