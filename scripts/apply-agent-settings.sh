@@ -2,7 +2,7 @@
 # Наложение оверрайдов настроек из agents/<агент>/settings/*.yaml на конфиги агентов.
 #
 # Запускается из хвоста деплоя (scripts/ops-publish-entry.sh), поэтому
-# действует только то, что лежит в main репозитория.
+# действует только то, что лежит в main репозитории.
 #
 # СВОЙСТВА, ЗАШИТЫЕ В КОД (не в обещания):
 #   - меняет ТОЛЬКО блоки групп из agents/*/settings/<группа>.yaml;
@@ -97,8 +97,9 @@ for f in "$AGENTS_DIR"/*/models.yaml; do
       continue
     fi
 
-    TMP="/tmp/settings.$$"
-    cp -a "$CFG" "$TMP"
+    TMP="$CFG.new.$$"
+    rm -f "$TMP"
+    cat "$CFG" > "$TMP" || { LOG "    не создать временный файл -- пропуск"; errors=$((errors+1)); rm -f "$BAK"; continue; }
 
     python3 - "$G" "$setting_file" "$TMP" <<'PY'
 import re, sys
@@ -152,6 +153,7 @@ PY
       continue
     fi
 
+    chmod --reference="$BAK" "$TMP" 2>/dev/null || true
     mv -f "$TMP" "$CFG" || { LOG "    ОШИБКА установки -- восстанавливаю из копии"; cp -a "$BAK" "$CFG"; errors=$((errors+1)); rm -f "$BAK"; continue; }
 
     LOG "    diff:"
