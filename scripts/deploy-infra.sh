@@ -116,8 +116,8 @@ if [ -f "$GW_SRC/cron/jobs.json" ]; then
   echo "  copied: cron/jobs.json"
 fi
 
-if [ -d "$GW_SRC/skills" ]; then
-  rsync -a "$GW_SRC/skills/" "$GW_DST/skills/" 2>/dev/null && \
+if [ -d "$REPO_DIR/agents/hermes-gateway/skills" ]; then
+  rsync -a "$REPO_DIR/agents/hermes-gateway/skills/" "$GW_DST/skills/" 2>/dev/null && \
     echo "  synced: skills/"
 fi
 
@@ -143,8 +143,8 @@ if [ -f "$SA_SRC/cron/jobs.json" ]; then
   echo "  copied: cron/jobs.json"
 fi
 
-if [ -d "$SA_SRC/skills" ]; then
-  rsync -a "$SA_SRC/skills/" "$SA_DST/skills/" 2>/dev/null && \
+if [ -d "$REPO_DIR/agents/hermes-sysadmin/skills" ]; then
+  rsync -a "$REPO_DIR/agents/hermes-sysadmin/skills/" "$SA_DST/skills/" 2>/dev/null && \
     echo "  synced: skills/"
 fi
 
