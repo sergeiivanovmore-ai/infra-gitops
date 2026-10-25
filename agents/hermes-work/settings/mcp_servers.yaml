@@ -1,0 +1,42 @@
+# Этот файл — источник истины для группы mcp_servers агента hermes-work
+# Применяется скриптом scripts/apply-agent-settings.sh из публикатора
+# Меняйте только через PR
+# Откат — верните прежнее содержимое этого файла
+#
+# ВНИМАНИЕ: применение заменяет группу mcp_servers целиком — перечислять все
+# серверы этого агента.
+#
+# archi и ru-marketplace отключены намеренно. Оба — локальные MCP-серверы,
+# чей код в контейнере отсутствует: нет каталога /opt/archi и нет пакета archi
+# в venv, нет каталога /opt/ru-marketplace-mcp. Поэтому они падали на старте
+# с «Connection closed» и уходили в parked, оставляя агента с двумя неработающими
+# инструментами. Чтобы вернуть их в работу, нужно сначала довезти код через
+# репозиторий и монтирование, и только потом ставить enabled: true.
+#
+# Секрет — только плейсхолдер, значение MCP_DSH_CARROT_API_KEY в
+# /opt/docker/hermes-work/data/.env.
+
+mcp_servers:
+  dsh-carrot:
+    url: http://dsh:8090/mcp
+    headers:
+      Authorization: "Bearer ${MCP_DSH_CARROT_API_KEY}"
+    enabled: true
+  archi:
+    command: /opt/hermes/.venv/bin/python
+    args:
+      - -m
+      - archi
+      - --cwd
+      - /opt/archi
+      - --env
+      - PYTHONPATH=/opt/archi
+    enabled: false
+  ru-marketplace:
+    command: /usr/local/bin/uv
+    args:
+      - --directory
+      - /opt/ru-marketplace-mcp
+      - run
+      - marketplace-mcp
+    enabled: false

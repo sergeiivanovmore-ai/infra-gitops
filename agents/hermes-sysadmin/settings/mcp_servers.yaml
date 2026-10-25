@@ -1,0 +1,25 @@
+# Этот файл — источник истины для группы mcp_servers агента hermes-sysadmin
+# Применяется скриптом scripts/apply-agent-settings.sh из публикатора
+# Меняйте только через PR
+# Откат — верните прежнее содержимое этого файла
+#
+# ВНИМАНИЕ: применение заменяет группу mcp_servers целиком — перечислять все
+# серверы этого агента.
+#
+# Секрет здесь — только плейсхолдер. Значение DSH_MCP_TOKEN лежит в
+# /opt/docker/hermes-sysadmin/data/.env и в репозиторий не попадает.
+# Имя сервера у этого агента — dsh (не dsh-carrot): доступ намеренно узкий
+# (trust: full плюс единственный инструмент agent_run). Переименовывать не нужно,
+# это не алиас, а другое по смыслу подключение.
+
+mcp_servers:
+  dsh:
+    url: http://dsh:8090/mcp
+    transport: http
+    trust: full
+    timeout: 900
+    headers:
+      Authorization: "Bearer ${DSH_MCP_TOKEN}"
+    tools:
+      include:
+        - agent_run
