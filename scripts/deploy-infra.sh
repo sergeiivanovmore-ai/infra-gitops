@@ -428,6 +428,26 @@ if command -v systemctl >/dev/null 2>&1; then
 fi
 
 # ================================================================
+# cron: ночной бэкап секретов в R2
+# ================================================================
+# Бэкап ходит в R2 от root: пароль restic в /root/.restic-password, ключи S3 в
+# /root/.config/restic/credentials (оба 600 root:root). В cron окружение урезано,
+# поэтому PATH задаётся явно, иначе restic не найдётся.
+SECRETS_CRON_FILE=/etc/cron.d/secrets-backup
+SECRETS_CRON_LINE='30 3 * * * root /opt/infra-gitops/scripts/backup-secrets.sh --yes >> /var/log/backup-secrets.log 2>&1'
+if ! grep -qF "$SECRETS_CRON_LINE" "$SECRETS_CRON_FILE" 2>/dev/null; then
+  {
+    echo "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    echo "SHELL=/bin/bash"
+    echo "$SECRETS_CRON_LINE"
+  } > "$SECRETS_CRON_FILE"
+  chmod 644 "$SECRETS_CRON_FILE"
+  echo "  cron: задача secrets-backup установлена"
+else
+  echo "  cron: задача secrets-backup уже на месте"
+fi
+
+# ================================================================
 # reverse-proxy (nginx-proxy): конфиги из репо
 # ================================================================
 mkdir -p /opt/docker/reverse-proxy/conf.d

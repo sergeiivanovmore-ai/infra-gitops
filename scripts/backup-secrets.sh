@@ -1,14 +1,13 @@
 #!/bin/bash
-# Инвентарь секретов и сухой прогон их бэкапа в R2 через restic.
+# Инвентарь секретов, сухой прогон и бэкап в R2 через restic.
 #
 # Режимы:
 #   --inventory  список файлов, которые попадут в бэкап: путь, размер, права.
 #                Ничего не пишет и в репозиторий R2 не обращается.
-#   --dry-run    то же плюс итог, проверка ключей и пароля restic. Тоже ничего
-#                не пишет: ни в R2, ни в .env.
-#   --yes        реальный restic backup. Появится отдельным PR вместе с cron —
-#                до него скрипт отказывается, чтобы случайный запуск не отправил
-#                секреты в хранилище.
+#   --dry-run    то же плюс проверка ключей, пароля и прав. Ничего не пишет.
+#                Ненулевой код означает «к бэкапу не готово».
+#   --yes        реальный бэкап: restic backup с тегом, forget с политикой
+#                удержания, check с выборочным чтением данных.
 #
 # Состав бэкапа не захардкожен: агентские .env находятся обходом
 # $DOCKER_DIR/hermes*/data/.env, поэтому новый агент попадёт в бэкап сам.
@@ -26,33 +25,37 @@ PASSWORD_FILE="${RESTIC_PASSWORD_FILE:-/root/.restic-password}"
 STATE_TOKEN="${BACKUP_STATE_TOKEN:-/root/.github-agent-state-token}"
 AUDIT_TOKEN="${BACKUP_AUDIT_TOKEN:-/root/.github-audit-token}"
 
+# Политика удержания снапшотов.
+KEEP_DAILY=7
+KEEP_WEEKLY=4
+KEEP_MONTHLY=6
+CHECK_SUBSET=5%
+
 # Что в бэкап не попадает никогда, даже если окажется в списке: расписание cron
 # уже ездит в hermes-agent-state, локи и базы — рантайм-мусор, а файл пароля
 # restic и файл ключей S3 не должны попадать в бэкап ни при каких обстоятельствах
 # (иначе хранилище открывается своим же содержимым).
 EXCLUDE_RE='(^|/)(jobs\.json|restic-password|credentials|.*\.(db|lock|tmp))$'
 
+log() { printf '[%s] %s\n' "$(date -Is)" "$*"; }
+
 MODE=""
 for arg in "$@"; do
   case "$arg" in
     --inventory) MODE="inventory" ;;
     --dry-run)   MODE="dry-run" ;;
-    --yes)
-      echo "ОСТАНОВ: реальный бэкап появится отдельным PR вместе с cron." >&2
-      echo "Сейчас доступны только --inventory и --dry-run." >&2
-      exit 2 ;;
+    --yes)       MODE="backup" ;;
     *)
       echo "неизвестный аргумент: $arg" >&2
       exit 2 ;;
   esac
 done
 if [ -z "$MODE" ]; then
-  echo "укажите режим: --inventory или --dry-run" >&2
+  echo "укажите режим: --inventory, --dry-run или --yes" >&2
   exit 2
 fi
 
 files=()
-required=()
 missing=0
 
 # Регистрация файла в списке. $1 — путь, $2 — "1", если файл обязателен.
@@ -64,7 +67,6 @@ add_file() {
   fi
   if [ -f "$path" ]; then
     files+=("$path")
-    required+=("$req")
     return
   fi
   if [ "$req" = "1" ]; then
@@ -102,7 +104,7 @@ for c in "$DOCKER_DIR"/*/data/config.yaml; do
 done
 
 if [ "${#files[@]}" -eq 0 ]; then
-  echo "ОСТАНОВ: ни одного файла для бэкапа не найдено" >&2
+  log "ОСТАНОВ: ни одного файла для бэкапа не найдено"
   exit 1
 fi
 
@@ -123,10 +125,11 @@ if [ "$MODE" = "inventory" ]; then
   exit 0
 fi
 
-# --- проверки доступа к хранилищу: значения не печатаются --------------------
+# --- проверки доступа: значения не печатаются ---------------------------------
 echo
 echo "=== ДОСТУП К ХРАНИЛИЩУ ==="
 
+PERMS_BAD=""
 check_file() {
   local name="$1" path="$2"
   if [ ! -f "$path" ]; then
@@ -140,18 +143,33 @@ check_file() {
   else
     printf '  %-46s есть, права %s — ОЖИДАЛОСЬ 600\n' "$name" "$mode"
     echo "WARNING: $path имеет права $mode, ожидалось 600" >&2
+    PERMS_BAD="$PERMS_BAD $path($mode)"
   fi
+  return 0
 }
 
-creds_ok=0
-check_file "credentials (ключи S3)" "$CREDENTIALS" && creds_ok=1 || true
+perms_ok=1
+creds_ok=1
+check_file "credentials (ключи S3)" "$CREDENTIALS" || creds_ok=0
 check_file "password (пароль restic)" "$PASSWORD_FILE" || creds_ok=0
+
+# И сами файлы секретов. .env агентов — это и есть содержимое бэкапа, поэтому
+# читаемый посторонним .env внутри снапшота — ровно та же дыра, что читаемый
+# пароль: секрет уже раскрыт, снапшот лишь фиксирует это. Проверка идёт тем же
+# check_file, поэтому плохие права попадают в PERMS_BAD.
+for f in "${files[@]}"; do
+  check_file "$f" "$f" || perms_ok=0
+done
+
+if [ -n "$PERMS_BAD" ]; then
+  perms_ok=0
+fi
 
 # Значения читаются построчно и НЕ подставляются через shell: пароль и ключи
 # могут содержать знаки $ и другие символы, которые source исказил бы. Ни одна
 # из величин здесь не печатается — только имя переменной и вердикт.
 for key in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY RESTIC_REPOSITORY; do
-  if [ "$creds_ok" = "1" ] && grep -qE "^[[:space:]]*(export[[:space:]]+)?${key}=" "$CREDENTIALS"; then
+  if [ -f "$CREDENTIALS" ] && grep -qE "^[[:space:]]*(export[[:space:]]+)?${key}=" "$CREDENTIALS"; then
     printf '  %-46s есть\n' "$key"
   else
     printf '  %-46s НЕТ\n' "$key"
@@ -159,7 +177,7 @@ for key in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY RESTIC_REPOSITORY; do
   fi
 done
 
-if [ "$creds_ok" = "1" ]; then
+if [ -f "$CREDENTIALS" ]; then
   while IFS= read -r line || [ -n "$line" ]; do
     line="${line#"${line%%[![:space:]]*}"}"
     case "$line" in ''|'#'*) continue ;; esac
@@ -175,26 +193,122 @@ if [ "$creds_ok" = "1" ]; then
           printf '  %-46s пустое значение\n' "$key"
           creds_ok=0
         elif [ "$key" = "RESTIC_REPOSITORY" ] && [ "${val#s3:}" = "$val" ]; then
-          printf '  %-46s не похоже на адрес s3:…\n' "$key"
-          creds_ok=0
+          # Подсказка, а не отказ: иначе рабочая, но иначе записанная строка
+          # заблокирует бэкап. Настоящую ошибку адреса покажет сам restic.
+          printf '  %-46s не начинается с s3: — проверьте адрес\n' "$key"
         fi
         export "$key=$val" ;;
     esac
   done < "$CREDENTIALS"
 fi
 
-echo
-if [ "$missing" -gt 0 ]; then
-  echo "ВНИМАНИЕ: не найдено обязательных файлов: $missing"
+ready=1
+if [ "$missing" -gt 0 ] || [ "$missed" != "0" ] || [ "$perms_ok" != "1" ] || [ "$creds_ok" != "1" ]; then
+  ready=0
 fi
-if [ "$missed" != "0" ]; then
-  echo "ВНИМАНИЕ: каталогов, похожих на агентов, но не попавших в список: $missed"
-fi
-if [ "$creds_ok" != "1" ]; then
-  echo "ВНИМАНИЕ: доступ к хранилищу не подтверждён"
-fi
-echo "режим --dry-run: ничего не записано — ни в R2, ни в .env"
-if [ "$missing" -gt 0 ] || [ "$missed" != "0" ] || [ "$creds_ok" != "1" ]; then
+
+if [ "$MODE" = "dry-run" ]; then
+  echo
+  if [ "$missing" -gt 0 ]; then
+    echo "ВНИМАНИЕ: не найдено обязательных файлов: $missing"
+  fi
+  if [ "$missed" != "0" ]; then
+    echo "ВНИМАНИЕ: каталогов, похожих на агентов, но не попавших в список: $missed"
+  fi
+  if [ "$creds_ok" != "1" ]; then
+    echo "ВНИМАНИЕ: доступ к хранилищу не подтверждён"
+  fi
+  if [ "$perms_ok" != "1" ]; then
+    echo "ВНИМАНИЕ: небезопасные права:$PERMS_BAD"
+  fi
+  if [ "$ready" = "1" ]; then
+    log "ИТОГ: к бэкапу готово; ничего не записано"
+    exit 0
+  fi
+  log "ИТОГ: к бэкапу НЕ готово (см. предупреждения выше); ничего не записано"
   exit 1
 fi
+
+# ── --yes: реальный бэкап ────────────────────────────────────────────────────
+# До этой точки ничего в R2 не уходит. Отказ, а не предупреждение: неполный
+# состав или читаемый посторонним пароль — это не «продолжим с оговоркой».
+if [ "$missing" -gt 0 ] || [ "$missed" != "0" ]; then
+  log "ОСТАНОВ: состав неполон (см. выше) — бэкап не запускаю"
+  exit 2
+fi
+if [ "$perms_ok" != "1" ]; then
+  log "ОСТАНОВ: небезопасные права ($PERMS_BAD) — бэкап не запускаю"
+  exit 2
+fi
+if [ "$creds_ok" != "1" ]; then
+  log "ОСТАНОВ: ключи доступа не подтверждены — бэкап не запускаю"
+  exit 2
+fi
+if ! command -v restic >/dev/null 2>&1; then
+  log "ОСТАНОВ: restic не найден в PATH"
+  exit 1
+fi
+
+# restic берёт пароль из этой переменной, поэтому её надо именно экспортировать.
+export RESTIC_PASSWORD_FILE="$PASSWORD_FILE"
+
+# Счётчик снапшотов: необязательная косметика, поэтому при любой неудаче — 0,
+# а не падение. Точные числа всё равно видны в выводе restic.
+snapshot_count() {
+  local n
+  n="$(restic snapshots --json 2>/dev/null | python3 -c 'import json,sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    d = []
+print(len(d) if isinstance(d, list) else 0)' 2>/dev/null || true)"
+  case "$n" in ''|*[!0-9]*) n=0 ;; esac
+  printf '%s' "$n"
+}
+
+snapshot_id() {
+  restic snapshots --json 2>/dev/null | python3 -c 'import json,sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    d = []
+if isinstance(d, list) and d:
+    print(d[-1].get("short_id") or d[-1].get("id", ""))' 2>/dev/null || true
+}
+
+log "начало бэкапа секретов: файлов ${#files[@]}, размер $total Б"
+
+if ! restic backup --tag secrets "${files[@]}"; then
+  log "ОШИБКА: restic backup завершился с ошибкой"
+  exit 1
+fi
+
+sid="$(snapshot_id)"
+after_backup="$(snapshot_count)"
+if [ "$after_backup" = "0" ]; then
+  # Счёт через --json может не поддержаться версией restic. Тогда честнее
+  # сказать об этом, чем показывать нули как настоящее число снапшотов.
+  log "snapshot: ${sid:-не определён}; счёт снапшотов недоступен (см. вывод restic выше)"
+else
+  log "snapshot: ${sid:-не определён}; снапшотов в хранилище: $after_backup"
+fi
+
+if ! restic forget --keep-daily "$KEEP_DAILY" --keep-weekly "$KEEP_WEEKLY" \
+     --keep-monthly "$KEEP_MONTHLY" --prune; then
+  log "ОШИБКА: restic forget --prune завершился с ошибкой"
+  exit 1
+fi
+after_forget="$(snapshot_count)"
+if [ "$after_backup" = "0" ]; then
+  log "политика: daily $KEEP_DAILY / weekly $KEEP_WEEKLY / monthly $KEEP_MONTHLY применена"
+else
+  log "политика: daily $KEEP_DAILY / weekly $KEEP_WEEKLY / monthly $KEEP_MONTHLY; снапшотов $after_backup -> $after_forget (удалено $((after_backup - after_forget)))"
+fi
+
+if ! restic check --read-data-subset="$CHECK_SUBSET"; then
+  log "ОШИБКА: restic check нашёл проблемы в хранилище"
+  exit 1
+fi
+log "check: OK (выборочное чтение данных $CHECK_SUBSET)"
+log "бэкап завершён успешно"
 exit 0
