@@ -150,6 +150,105 @@ done
 # --- внешние проверки: домены, сертификаты, почта ---
 [ -f "$REPO/scripts/health-checks/extra.sh" ] && CHECKS=$(HEALTH_SETS="$OVERRIDES" bash "$REPO/scripts/health-checks/extra.sh" "$FIND" "$CHECKS" 2>>"$OUT_DIR/health-modules.err" || echo "$CHECKS")
 
+# --- 8. бэкап секретов: свежесть снапшота и права .env в нём ---
+CHECKS=$((CHECKS+1))
+# restic ходит в R2 от root: пароль в /root/.restic-password, ключи S3 в
+# /root/.config/restic/credentials. Ключи читаем построчно, НЕ через source:
+# значения содержат знаки $, которые shell исказил бы. Значения не печатаем.
+RESTIC_CREDS="${BACKUP_CREDENTIALS:-/root/.config/restic/credentials}"
+RESTIC_PWFILE="${RESTIC_PASSWORD_FILE:-/root/.restic-password}"
+BACKUP_MAX_AGE=$(th backup_max_age_hours 26)
+SNAP_OVR=$(th backup_snapshots_override "")
+AGE_OVR=$(th backup_age_hours "")
+MODE_OVR=$(th backup_mode_override "")
+
+if [ -f "$RESTIC_CREDS" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    case "$line" in ''|'#'*) continue ;; esac
+    case "$line" in export\ *) line="${line#export }" ;; esac
+    key="${line%%=*}"
+    val="${line#*=}"
+    key="$(printf '%s' "$key" | tr -d '[:space:]')"
+    val="${val#"${val%%[![:space:]]*}"}"
+    val="${val%\"}"; val="${val#\"}"; val="${val%\'}"; val="${val#\'}"
+    case "$key" in
+      AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|RESTIC_REPOSITORY|AWS_DEFAULT_REGION)
+        export "$key=$val" ;;
+    esac
+  done < "$RESTIC_CREDS"
+fi
+export RESTIC_PASSWORD_FILE="$RESTIC_PWFILE"
+
+if ! command -v restic >/dev/null 2>&1; then
+  add p1 backup "restic не найден — бэкапа секретов нет" "restic отсутствует в PATH" "apt-get install -y restic"
+else
+  # Один вызов restic snapshots --json даёт сразу число снапшотов, ID последнего
+  # и его возраст. Доли секунды любой длины убираем: формат времени restic
+  # наносекундный, и не каждый разборщик его принимает.
+  READ=$(restic snapshots --json 2>/dev/null | python3 -c '
+import datetime, json, re, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    d = []
+if not isinstance(d, list) or not d:
+    print("0||")
+    raise SystemExit(0)
+s = d[-1]
+t = re.sub(r"\.\d+", "", str(s.get("time", ""))).replace("Z", "+00:00")
+try:
+    ts = datetime.datetime.fromisoformat(t)
+except Exception:
+    print("%d||" % len(d))
+    raise SystemExit(0)
+if ts.tzinfo is None:
+    ts = ts.replace(tzinfo=datetime.timezone.utc)
+age = int((datetime.datetime.now(datetime.timezone.utc) - ts).total_seconds() // 3600)
+print("%d|%s|%d" % (len(d), s.get("short_id") or s.get("id", ""), age))
+' 2>/dev/null || true)
+
+  COUNT="${READ%%|*}"
+  REST="${READ#*|}"
+  LAST_ID="${REST%%|*}"
+  AGE_H="${REST#*|}"
+  [ -n "$COUNT" ] || COUNT=0
+  [ -n "$AGE_H" ] || AGE_H=0
+  # --set: симуляция для проверки самой проверки.
+  [ -n "$SNAP_OVR" ] && COUNT="$SNAP_OVR"
+  [ -n "$AGE_OVR" ] && AGE_H="$AGE_OVR"
+
+  if [ "$COUNT" = "0" ]; then
+    add p1 backup "снапшотов нет — бэкап секретов не работает" "restic snapshots: 0" "restic snapshots; tail -20 /var/log/backup-secrets.log"
+  elif [ "$AGE_H" -gt "$BACKUP_MAX_AGE" ] 2>/dev/null; then
+    add p1 backup "последний снапшот секретов старше порога" "возраст: ${AGE_H}h (порог ${BACKUP_MAX_AGE}h)" "restic snapshots; tail -20 /var/log/backup-secrets.log"
+  else
+    say "бэкап: снапшотов $COUNT, последний ${AGE_H}h назад (порог ${BACKUP_MAX_AGE}h)"
+  fi
+
+  if [ "$COUNT" != "0" ]; then
+    # Права внутри снапшота — единственный способ увидеть, что при восстановлении
+    # вернутся читаемые посторонним секреты. Каталоги пропускаем: у них свой режим.
+    if [ -n "$MODE_OVR" ]; then
+      BAD_MODES="подставлено для проверки: режим $MODE_OVR"
+    else
+      # Только регулярные файлы: строка начинается с "-". Заголовок restic ls
+      # ("snapshot ... at ... UTC)") и каталоги ("d...") файлами не являются, их
+      # режим здесь ничего не значит — на них проверка давала ложный P1.
+      BAD_MODES=$(restic ls --long "$LAST_ID" 2>/dev/null | awk '$1 ~ /^-/ && $1 != "-rw-------" {print $NF " (" $1 ")"}')
+    fi
+    if [ -n "$BAD_MODES" ]; then
+      add p1 backup "в снапшоте секреты не с правами 600" "$(printf '%s' "$BAD_MODES" | head -1)" "restic ls --long $LAST_ID | grep -E '/data/\.env|\.github-'"
+    fi
+  fi
+fi
+
+# --- 9. cron-демон: без него не работает ни синк состояния, ни бэкап ---
+CHECKS=$((CHECKS+1))
+if ! systemctl is-active --quiet cron 2>/dev/null && ! systemctl is-active --quiet crond 2>/dev/null; then
+  add p2 cron "cron-демон не активен — расписание не работает" "systemctl is-active cron: нет" "systemctl status cron; cat /etc/cron.d/secrets-backup"
+fi
+
 # --- сборка отчёта ---
 python3 - "$FIND" "$MD" "$JS" "$TS" "$NODE" "$CHECKS" <<'PY'
 import json, sys
