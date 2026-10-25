@@ -330,6 +330,33 @@ else
 fi
 
 # ================================================================
+# cron: часовой синк состояния агентов
+# ================================================================
+# Синк ходит в приватный hermes-agent-state от root: токен лежит в
+# /root/.github-agent-state-token (600 root:root). В cron окружение урезано,
+# поэтому PATH задаётся явно, иначе git и rsync не найдутся.
+CRON_FILE=/etc/cron.d/agent-state-sync
+CRON_LINE='0 * * * * root /opt/infra-gitops/scripts/sync-agent-state.sh >> /var/log/sync-agent-state.log 2>&1'
+if ! grep -qF "$CRON_LINE" "$CRON_FILE" 2>/dev/null; then
+  {
+    echo "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    echo "SHELL=/bin/bash"
+    echo "$CRON_LINE"
+  } > "$CRON_FILE"
+  chmod 644 "$CRON_FILE"
+  echo "  cron: задача agent-state-sync установлена"
+else
+  echo "  cron: задача agent-state-sync уже на месте"
+fi
+if command -v systemctl >/dev/null 2>&1; then
+  if systemctl is-active --quiet cron 2>/dev/null || systemctl is-active --quiet crond 2>/dev/null; then
+    echo "  cron: демон активен"
+  else
+    echo "  WARN: cron-демон не активен — синк состояния запускаться не будет"
+  fi
+fi
+
+# ================================================================
 # reverse-proxy (nginx-proxy): конфиги из репо
 # ================================================================
 mkdir -p /opt/docker/reverse-proxy/conf.d
