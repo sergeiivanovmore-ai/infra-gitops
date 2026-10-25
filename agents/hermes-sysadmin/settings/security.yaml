@@ -1,0 +1,24 @@
+# Этот файл — источник истины для группы security агента hermes-sysadmin
+# Применяется скриптом scripts/apply-agent-settings.sh из публикатора
+# Меняйте только через PR
+# Откат — верните прежнее содержимое этого файла
+#
+# ВНИМАНИЕ: применение заменяет группу целиком, поэтому здесь должны быть
+# перечислены ВСЕ ключи группы. Файл получен извлечением из хостового
+# config.yaml, вручную ключи не добавлялись.
+
+security:
+  allow_private_urls: false
+  redact_secrets: true
+  tirith_enabled: true
+  tirith_path: tirith
+  tirith_timeout: 15
+  tirith_fail_open: false       # ← критично
+  website_blocklist:
+    enabled: false
+    domains: []
+    shared_files: []
+  acked_advisories: []
+  allow_lazy_installs: false    # ← критично
+
+
