@@ -329,6 +329,50 @@ else
   fi
 fi
 
+# ── hermes-orchestrator ──────────────────────────────────────────────────────
+if agent_recreate_ok hermes-orchestrator; then
+  mkdir -p /opt/docker/hermes-orchestrator
+  cp -f "$REPO_DIR/docker/docker-compose.orchestrator.yml" /opt/docker/hermes-orchestrator/docker-compose.yml
+  echo "  copied: docker-compose.orchestrator.yml -> /opt/docker/hermes-orchestrator/"
+  if [ ! -f /opt/docker/hermes-orchestrator/data/.env ]; then
+    echo "  SKIP: нет /opt/docker/hermes-orchestrator/data/.env — пересоздание пропущено, чтобы агент не поднялся без переменных" >&2
+  elif ! docker network inspect hermes-net >/dev/null 2>&1 || ! docker network inspect mcp-network >/dev/null 2>&1; then
+    echo "  SKIP: нет внешней сети hermes-net или mcp-network — compose упрётся в неё" >&2
+  else
+    cd /opt/docker/hermes-orchestrator
+    if compose_changed /opt/docker/hermes-orchestrator; then
+      docker compose up -d --force-recreate
+      compose_stamp_save /opt/docker/hermes-orchestrator
+      echo "  hermes-orchestrator: пересоздан"
+    else
+      docker compose up -d
+      echo "  hermes-orchestrator: compose без изменений — пересоздание не требуется"
+    fi
+  fi
+fi
+
+# ── hermes-work ──────────────────────────────────────────────────────
+if agent_recreate_ok hermes-work; then
+  mkdir -p /opt/docker/hermes-work
+  cp -f "$REPO_DIR/docker/docker-compose.work.yml" /opt/docker/hermes-work/docker-compose.yml
+  echo "  copied: docker-compose.work.yml -> /opt/docker/hermes-work/"
+  if [ ! -f /opt/docker/hermes-work/data/.env ]; then
+    echo "  SKIP: нет /opt/docker/hermes-work/data/.env — пересоздание пропущено, чтобы агент не поднялся без переменных" >&2
+  elif ! docker network inspect hermes-net >/dev/null 2>&1 || ! docker network inspect mcp-network >/dev/null 2>&1; then
+    echo "  SKIP: нет внешней сети hermes-net или mcp-network — compose упрётся в неё" >&2
+  else
+    cd /opt/docker/hermes-work
+    if compose_changed /opt/docker/hermes-work; then
+      docker compose up -d --force-recreate
+      compose_stamp_save /opt/docker/hermes-work
+      echo "  hermes-work: пересоздан"
+    else
+      docker compose up -d
+      echo "  hermes-work: compose без изменений — пересоздание не требуется"
+    fi
+  fi
+fi
+
 # ================================================================
 # cron: часовой синк состояния агентов
 # ================================================================

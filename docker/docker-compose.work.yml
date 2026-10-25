@@ -1,0 +1,38 @@
+# hermes-work — запуск рабочего агента.
+#
+# Файл описывает ФАКТИЧЕСКИЙ запуск, снятый с работающего контейнера через
+# docker inspect. До этого compose лежал только на хосте и не версионировался.
+#
+# ОБРАТИТЕ ВНИМАНИЕ НА ОБРАЗ: у work он v2026.9.24, тогда как у orchestrator —
+# main. Так сейчас работает; расхождение сохранено намеренно, чтобы перенос в
+# репозиторий не менял поведение. При обновлении work до main стоит сверить набор
+# переменных: у orchestrator их больше (API_SERVER_ENABLED/HOST/PORT/KEY, CC, CXX).
+#
+# Значения переменных — в /opt/docker/hermes-work/data/.env на хосте (монтируется
+# как /opt/data/.env, Hermes читает его с override=True).
+
+services:
+  hermes-work:
+    image: nousresearch/hermes-agent:v2026.9.24
+    container_name: hermes-work
+    entrypoint: ["/opt/hermes/docker/entrypoint-dispatch.sh"]
+    command: ["gateway", "run"]
+    working_dir: /opt/hermes
+    user: root
+    restart: unless-stopped
+    env_file:
+      - ./data/.env
+    ports:
+      - "127.0.0.1:8642:8642"
+      - "127.0.0.1:9119:9119"
+    volumes:
+      - ./data:/opt/data
+    networks:
+      - hermes-net
+      - mcp-network
+
+networks:
+  hermes-net:
+    external: true
+  mcp-network:
+    external: true
