@@ -117,6 +117,11 @@ def extract(lines, group):
         fail("группы %s нет в конфиге" % group)
     out = [lines[start]]
     for l in lines[start + 1:]:
+        # Баннер раздела завершает группу. Он начинается с решётки, поэтому
+        # без этой проверки сбор продолжается и в файл настроек уезжает
+        # хвост следующего раздела вместе с его заголовком.
+        if re.match(r"^# ={10,}", l):
+            break
         if l and not l.startswith((" ", "#")):
             break
         out.append(l)
