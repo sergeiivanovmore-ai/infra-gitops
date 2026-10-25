@@ -8,6 +8,33 @@ LOG_FILE="/var/log/infra-deploy.log"
 
 exec >> "$LOG_FILE" 2>&1
 
+# ── Проверка конфликта хостовых портов между compose-файлами ────────────────
+# Хостовые порты задаются в нескольких файлах docker/docker-compose.*.yml, и два
+# файла легко могут занять один порт: так почти случилось, когда work получил
+# 8642/9119, уже занятые gateway. Проверяем до запуска compose, иначе второй
+# docker compose up -d упадёт на занятом порту уже после частичного применения.
+check_no_port_conflicts() {
+  local dir="$REPO_DIR/docker" conflicts
+  # Шаблон ловит "127.0.0.1:8641:8642" и "3080:3080". Порты, заданные через
+  # переменную (${DSH_WEB_PORT:-3080}), не разбираются: их значение известно
+  # только на хосте, и подставлять сюда догадку нельзя.
+  conflicts=$(grep -H -E '^[[:space:]]+-[[:space:]]*"[0-9.]+:[0-9]+:[0-9]+"' \
+      "$dir"/docker-compose.*.yml 2>/dev/null \
+    | sed -E 's#^.*/([^/]+\.yml):[[:space:]]+-[[:space:]]*"[0-9.]*:([0-9]+):[0-9]+".*#\2 \1#' \
+    | sort | awk '{seen[$1]=seen[$1]" "$2; n[$1]++} END {for (p in n) if (n[p]>1) printf "порт %s занят:%s\n", p, seen[p]}') || true
+  if [ -n "$conflicts" ]; then
+    echo "ОШИБКА: один хостовый порт занят несколькими compose-файлами:"
+    echo "$conflicts"
+    echo "Разведите порты в docker/docker-compose.*.yml и запустите деплой снова."
+    return 1
+  fi
+  echo "  порты: конфликтов между compose-файлами нет"
+  return 0
+}
+
+check_no_port_conflicts
+
+
 # ── Для агента: копия лога ЭТОГО прогона в bind hermes-sysadmin ──────────────
 # Агент читает результат деплоя сам: без docker exec и без ручного tail.
 # trap на EXIT — копия делается на ЛЮБОМ выходе: успех, провал аудит-гейта,
