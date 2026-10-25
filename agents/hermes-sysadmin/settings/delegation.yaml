@@ -1,0 +1,27 @@
+# Этот файл — источник истины для группы delegation агента hermes-sysadmin
+# Применяется скриптом scripts/apply-agent-settings.sh из публикатора
+# Меняйте только через PR
+# Откат — верните прежнее содержимое этого файла
+#
+# ВНИМАНИЕ: применение заменяет группу целиком, поэтому здесь должны быть
+# перечислены ВСЕ ключи группы. Файл получен извлечением из хостового
+# config.yaml, вручную ключи не добавлялись.
+
+delegation:
+  max_iterations: 50                          # Max tool-calling turns per child (default: 50)
+  # max_concurrent_children: 3                # Max parallel child agents per batch (default: 3, floor: 1, no ceiling).
+                                              # WARNING: values above 10 multiply API cost linearly.
+  # max_spawn_depth: 1                        # Delegation tree depth cap (range: 1-3, default: 1 = flat).
+                                              # Raise to 2 to allow workers to spawn their own subagents.
+                                              # Requires role="orchestrator" on intermediate agents.
+  # orchestrator_enabled: true                # Kill switch for role="orchestrator" children (default: true).
+  # subagent_auto_approve: false              # When a subagent hits a dangerous-command approval prompt, auto-deny (default: false)
+                                              # or auto-approve "once" (true) instead of blocking on stdin.
+                                              # The parent TUI owns stdin, so blocking would deadlock; non-interactive resolution is required.
+                                              # Both choices emit a logger.warning audit line. Flip to true only for cron/batch pipelines.
+  # inherit_mcp_toolsets: true                # When explicit child toolsets are narrowed, also keep the parent's MCP toolsets (default: true). Set false for strict intersection.
+  # model: "google/gemini-3-flash-preview"    # Override model for subagents (empty = inherit parent)
+  # provider: "openrouter"                    # Override provider for subagents (empty = inherit parent)
+  #                                           # Resolves full credentials (base_url, api_key) automatically.
+  #                                           # Supported: openrouter, nous, zai, kimi-coding, minimax
+
