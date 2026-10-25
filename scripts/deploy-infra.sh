@@ -448,6 +448,25 @@ else
 fi
 
 # ================================================================
+# cron: месячная проверка восстановления секретов
+# ================================================================
+# Первое число, 04:00 — после ночного бэкапа (03:30), чтобы проверялся свежий
+# снапшот. Запуск через bash: exec-бит файла не должен влиять на работу задачи.
+RESTORE_CRON_FILE=/etc/cron.d/restore-test
+RESTORE_CRON_LINE='0 4 1 * * root bash /opt/infra-gitops/scripts/restore-test.sh --yes >> /var/log/restore-test.log 2>&1'
+if ! grep -qF "$RESTORE_CRON_LINE" "$RESTORE_CRON_FILE" 2>/dev/null; then
+  {
+    echo "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    echo "SHELL=/bin/bash"
+    echo "$RESTORE_CRON_LINE"
+  } > "$RESTORE_CRON_FILE"
+  chmod 644 "$RESTORE_CRON_FILE"
+  echo "  cron: задача restore-test установлена"
+else
+  echo "  cron: задача restore-test уже на месте"
+fi
+
+# ================================================================
 # reverse-proxy (nginx-proxy): конфиги из репо
 # ================================================================
 mkdir -p /opt/docker/reverse-proxy/conf.d
