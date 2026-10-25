@@ -1,0 +1,39 @@
+# Этот файл — источник истины для группы mcp_servers агента hermes-gateway
+# Применяется скриптом scripts/apply-agent-settings.sh из публикатора
+# Меняйте только через PR
+# Откат — верните прежнее содержимое этого файла
+#
+# ВНИМАНИЕ: применение заменяет группу mcp_servers целиком, поэтому здесь должны
+# быть перечислены ВСЕ серверы этого агента. Если сервер останется только в
+# хостовом config.yaml, он пропадёт при следующем применении.
+#
+# filesystem-plus и searxng-search запускаются через npx -y, то есть требуют
+# сети и npm-кэша в момент старта контейнера: без сети они уйдут в parked.
+# У dsh-carrot здесь нет заголовка Authorization, хотя у других агентов он есть.
+
+mcp_servers:
+  filesystem-plus:
+    command: npx
+    args:
+      - -y
+      - '@modelcontextprotocol/server-filesystem'
+      - /opt/data/workspace
+  searxng-search:
+    command: npx
+    args:
+      - -y
+      - '@kassol/mcp-searxng'
+    env:
+      SEARXNG_URL: http://searxng:8080
+  vkusvill:
+    url: https://mcp.vkusvill.ru/mcp
+    transport: streamable-http
+    enabled: true
+    timeout: 120
+    connect_timeout: 30
+  dsh-carrot:
+    url: http://dsh:8090/mcp
+    transport: streamable-http
+    enabled: true
+    timeout: 1200
+    connect_timeout: 30

@@ -1,0 +1,17 @@
+# Этот файл — источник истины для группы mcp_servers агента hermes-orchestrator
+# Применяется скриптом scripts/apply-agent-settings.sh из публикатора
+# Меняйте только через PR
+# Откат — верните прежнее содержимое этого файла
+#
+# ВНИМАНИЕ: применение заменяет группу mcp_servers целиком — перечислять все
+# серверы этого агента.
+#
+# Секрет — только плейсхолдер, значение MCP_DSH_CARROT_API_KEY в
+# /opt/docker/hermes-orchestrator/data/.env.
+
+mcp_servers:
+  dsh-carrot:
+    url: http://dsh:8090/mcp
+    headers:
+      Authorization: "Bearer ${MCP_DSH_CARROT_API_KEY}"
+    enabled: true
