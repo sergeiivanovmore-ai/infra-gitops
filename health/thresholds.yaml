@@ -14,3 +14,5 @@ cert_days: 30
 mail_container: mail-relay
 mail_queue_warn: 20
 mail_queue_crit: 200
+# Бэкап секретов: последний снапшот не должен быть старше этого срока.
+backup_max_age_hours: 26
