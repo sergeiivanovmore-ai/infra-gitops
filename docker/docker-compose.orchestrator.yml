@@ -1,0 +1,43 @@
+# hermes-orchestrator — запуск агента-оркестратора.
+#
+# Файл описывает ФАКТИЧЕСКИЙ запуск, снятый с работающего контейнера через
+# docker inspect: образ, entrypoint, команда, монтирование, сети, порты, restart.
+# До этого compose лежал только на хосте (/opt/docker/hermes-orchestrator/
+# docker-compose.yml) и не версионировался, поэтому при потере хоста агент не
+# восстанавливался.
+#
+# Значения переменных в репозиторий не попадают: они лежат на хосте в
+# /opt/docker/hermes-orchestrator/data/.env, который монтируется в контейнер как
+# /opt/data/.env. Hermes читает этот файл с override=True, поэтому значения
+# доезжают до агента независимо от compose.
+#
+# ВНИМАНИЕ: до первого пересоздания контейнера файл data/.env должен существовать,
+# иначе агент поднимется без переменных дашборда и API.
+
+services:
+  hermes-orchestrator:
+    image: nousresearch/hermes-agent:main
+    container_name: hermes-orchestrator
+    entrypoint: ["/opt/hermes/docker/entrypoint-dispatch.sh"]
+    command: ["gateway", "run"]
+    working_dir: /opt/hermes
+    user: root
+    restart: unless-stopped
+    env_file:
+      - ./data/.env
+    ports:
+      # Хост-порты сдвинуты на единицу относительно work, чтобы агенты не
+      # конфликтовали. Внутри контейнера порты всегда 8642 и 9119.
+      - "127.0.0.1:8643:8642"
+      - "127.0.0.1:9120:9119"
+    volumes:
+      - ./data:/opt/data
+    networks:
+      - hermes-net
+      - mcp-network
+
+networks:
+  hermes-net:
+    external: true
+  mcp-network:
+    external: true
