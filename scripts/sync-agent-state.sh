@@ -51,6 +51,9 @@ log() { printf '%s\n' "$*"; }
 # агенту. Механизм различения встроенных и кастомных скиллов обсуждается отдельно;
 # до его появления скиллы в состояние не попадают.
 STATE_SUBDIRS=(memories)
+# jobs.json каталога cron синкается отдельно и поштучно — см. блок в цикле
+# ниже. В data/cron/ кроме него лежит рантайм-мусор (executions.db, локи),
+# которому в приватном репозитории места нет.
 
 [ -d "$REPO_DIR/agents" ] || { log "нет $REPO_DIR/agents — неоткуда взять состав агентов"; exit 1; }
 
@@ -171,6 +174,29 @@ for i in "${!agents[@]}"; do
             "$src/" "$dest/$sub/"
     fi
   done
+
+  # Расписание cron: копируется ТОЛЬКО jobs.json, поштучно. rsync здесь не
+  # годится: в data/cron/ лежит рантайм-мусор (executions.db, .jobs.lock,
+  # .tick.lock, .fire-*.lock), и exclude-список пришлось бы дополнять при
+  # каждом новом мусорном файле. Копирование одного файла исключает попадание
+  # мусора в приватный репозиторий полностью.
+  cron_src="$dir/cron/jobs.json"
+  cron_dst="$dest/cron/jobs.json"
+  if [ -f "$cron_src" ]; then
+    if [ "$DRY_RUN" = "1" ]; then
+      if ! cmp -s "$cron_src" "$cron_dst"; then
+        log "  $name/cron: изменится jobs.json"
+        changed=1
+      fi
+    else
+      mkdir -p "$dest/cron"
+      cp -p "$cron_src" "$cron_dst"
+    fi
+  elif [ -f "$cron_dst" ]; then
+    # На хосте файла нет, а в репозитории есть — как и для остальных
+    # подкаталогов, это скорее сбой, чем осознанное удаление: не трогаем.
+    log "  $name/cron: на хосте jobs.json нет, а в репозитории есть — пропуск"
+  fi
 done
 
 if [ "$DRY_RUN" = "1" ]; then
