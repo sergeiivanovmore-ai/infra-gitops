@@ -569,7 +569,6 @@ fi
 # nginx reload — ПОСЛЕ старта всех сервисов
 # ================================================================
 sleep 5
-if docker exec nginx-proxy nginx -t; then
 # ================================================================
 # Возврат состояния агентов (скрипты cron) из приватного репозитория
 # ================================================================
@@ -583,6 +582,7 @@ else
   echo "  WARN: в репозитории нет scripts/apply-agent-state.sh"
 fi
 
+if docker exec nginx-proxy nginx -t; then
   docker exec nginx-proxy nginx -s reload
   echo "  nginx: конфиг проверен, reload выполнен"
 else
