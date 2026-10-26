@@ -3,6 +3,6 @@ kind: hermes
 config: /opt/docker/hermes-orchestrator/data/config.yaml
 restart: hermes-orchestrator
 model_provider: openrouter
-model_default: z-ai/glm-5.3-flash
-auxiliary_openrouter_model: z-ai/glm-5.3-flash
+model_default: deepseek/deepseek-v4.1-flash-1017
+auxiliary_openrouter_model: deepseek/deepseek-v4.1-flash-1017
 auxiliary_free_only: false
