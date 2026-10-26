@@ -11,23 +11,28 @@
 #     тот же приём, что в sync-agent-state.sh, зашитых имён нет;
 #   * копируются только *.py и *.sh: рантайм-мусору (executions.db, локи) в
 #     каталоге скриптов места нет;
-#   * файл на хосте — источник правды: если он новее, чем в состоянии, он не
-#     перезаписывается, иначе деплой затирал бы свежие правки;
+#   * по умолчанию копируется только то, чего на хосте НЕТ. Живой файл не
+#     перезаписывается никогда, и mtime здесь не защита: git checkout в чекауте
+#     состояния выставляет файлам свежие времена, поэтому копия из состояния
+#     всегда выглядела бы «новее» живого скрипта. Для осознанной замены есть
+#     отдельный флаг --replace;
 #   * владелец и группа берутся у каталога данных агента, режим 700;
 #   * нет чекаута состояния — выходим с кодом 0: на новом хосте до первого
 #     синка это нормально, и деплой из-за этого падать не должен.
 #
-# Использование: apply-agent-state.sh [--dry-run]
+# Использование: apply-agent-state.sh [--dry-run] [--replace]
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/opt/infra-gitops}"
 STATE_DIR="${STATE_DIR:-/opt/agent-state-checkout}"
 BRANCH="${STATE_BRANCH:-state/auto}"
 DRY_RUN=0
+REPLACE=0
 
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
+    --replace) REPLACE=1 ;;
     *) echo "неизвестный аргумент: $arg" >&2; exit 2 ;;
   esac
 done
@@ -75,7 +80,9 @@ for models in "$REPO_DIR"/agents/*/models.yaml; do
       *) continue ;;
     esac
     dst="$dir/scripts/$base"
-    if [ -f "$dst" ] && [ "$dst" -nt "$f" ]; then
+    # Живой файл не перезаписываем: копируем только то, чего на хосте нет.
+    # Замена — только явным --replace.
+    if [ "$REPLACE" = "0" ] && [ -f "$dst" ]; then
       skipped=$((skipped + 1))
       continue
     fi
@@ -95,8 +102,8 @@ for models in "$REPO_DIR"/agents/*/models.yaml; do
 done
 
 if [ "$DRY_RUN" = "1" ]; then
-  log "  состояние: план — к возврату $applied, пропущено (на хосте новее) $skipped"
+  log "  состояние: план — к возврату $applied, пропущено (уже на хосте) $skipped"
 else
-  log "  состояние: возвращено файлов $applied, пропущено (на хосте новее) $skipped"
+  log "  состояние: возвращено файлов $applied, пропущено (уже на хосте) $skipped"
 fi
 exit 0
