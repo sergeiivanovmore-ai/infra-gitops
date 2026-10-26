@@ -434,8 +434,9 @@ fi
 # /root/.config/restic/credentials (оба 600 root:root). В cron окружение урезано,
 # поэтому PATH задаётся явно, иначе restic не найдётся.
 SECRETS_CRON_FILE=/etc/cron.d/secrets-backup
-SECRETS_CRON_LINE='30 3 * * * root /opt/infra-gitops/scripts/backup-secrets.sh --yes >> /var/log/backup-secrets.log 2>&1'
-if ! grep -qF "$SECRETS_CRON_LINE" "$SECRETS_CRON_FILE" 2>/dev/null; then
+SECRETS_CRON_LINE='30 3 * * * root bash /opt/infra-gitops/scripts/backup-secrets.sh --yes >> /var/log/backup-secrets.log 2>&1'
+if [ ! -f "$SECRETS_CRON_FILE" ] || ! grep -qF "$SECRETS_CRON_LINE" "$SECRETS_CRON_FILE" 2>/dev/null \
+   || [ "$(grep -c 'backup-secrets' "$SECRETS_CRON_FILE" 2>/dev/null || true)" != "1" ]; then
   {
     echo "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     echo "SHELL=/bin/bash"
