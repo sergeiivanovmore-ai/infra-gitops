@@ -71,7 +71,7 @@ agent_running() {
 
 # --- compose_changed / compose_stamp_save: пересоздавать только по делу -------
 # Метка хранится рядом с compose, в файле .deploy.stamp. Нет метки — считаем,
-# что compose изменился: лишнее пересоздание один раз безопаснее пропуска.
+# что compose изменился: лишнее пересоздание один раз безопаснее повторного.
 compose_changed() {
   local dir="$1" cur old
   cur=$(md5sum "$dir/docker-compose.yml" 2>/dev/null | cut -d' ' -f1)
@@ -211,7 +211,7 @@ else
 fi
 
 # ── Очистка устаревшего session cache DSH ──────────────────────
-# В session_projcache могут храниться cwd с хост-путями вроде
+# В session_projcache могут храниться cwd с хостовыми путями вроде
 # /opt/docker, которых нет внутри контейнера. При старте DSH
 # восстанавливает последнюю сессию и падает на realpath('/opt/docker'):
 #   [dsh-carrot-on-a-stick] workspace attach failed:
@@ -473,7 +473,7 @@ mkdir -p /opt/docker/reverse-proxy/conf.d
 cp -f "$REPO_DIR/reverse-proxy/conf.d/"*.conf /opt/docker/reverse-proxy/conf.d/
 echo "  copied: reverse-proxy/conf.d/*.conf -> /opt/docker/reverse-proxy/conf.d/"
 
-# ── Сверка conf.d с репо: файлы, которых нет в репозитории, уводим в бэкап ──
+# ── Сверка conf.d с репо: файлов, которых нет в репозитории, уводим в бэкап ──
 # Репо — единственный источник истины: «удалил из репо» действительно означает удалено.
 CONF_DIR="/opt/docker/reverse-proxy/conf.d"
 CONF_BACKUP="/opt/docker/backups/reverse-proxy-conf"
@@ -570,6 +570,19 @@ fi
 # ================================================================
 sleep 5
 if docker exec nginx-proxy nginx -t; then
+# ================================================================
+# Возврат состояния агентов (скрипты cron) из приватного репозитория
+# ================================================================
+# Расписание агентов приезжает из репозитория, а сами скрипты — из состояния.
+# Без этого шага cron-задачи существовали бы, но запускать им было бы нечего.
+# Скрипт не затирает вслепую: файл на хосте считается источником правды.
+if [ -f "$REPO_DIR/scripts/apply-agent-state.sh" ]; then
+  bash "$REPO_DIR/scripts/apply-agent-state.sh" || \
+    echo "  WARN: apply-agent-state.sh завершился с ошибкой — состояние вернулось не полностью"
+else
+  echo "  WARN: в репозитории нет scripts/apply-agent-state.sh"
+fi
+
   docker exec nginx-proxy nginx -s reload
   echo "  nginx: конфиг проверен, reload выполнен"
 else
