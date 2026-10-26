@@ -206,6 +206,41 @@ if [ "$DRY_RUN" = "1" ]; then
 fi
 
 # --- коммит и публикация -----------------------------------------------------
+# --- скрипты cron: тоже состояние ---------------------------------------------
+# Расписание агентов лежит в репозитории, а запускать его будет нечем, если
+# сами скрипты остались только на хосте: после переезда состояние принесёт
+# jobs.json, но не health_watchdog.py и ему подобные, и мониторинг промолчит
+# ровно в той аварийной ситуации, ради которой всё это делается.
+# Копируем поштучно и только файлы верхнего уровня каталога scripts. Каталоги
+# (например whatsapp-bridge/ с состоянием сессии) синкать нельзя: зеркало идёт
+# с --delete, поэтому случайное удаление на хосте унесло бы копию и отсюда.
+for i in "${!agents[@]}"; do
+  name="${agents[$i]}"
+  dir="${data_dirs[$i]}"
+  dest="agents/$name/state"
+  [ -d "$dir/scripts" ] || continue
+  [ "$DRY_RUN" = "1" ] || mkdir -p "$dest/scripts"
+  n=0
+  for f in "$dir"/scripts/*.py "$dir"/scripts/*.sh; do
+    [ -f "$f" ] || continue
+    base="$(basename "$f")"
+    target="$dest/scripts/$base"
+    if [ -f "$target" ] && cmp -s "$f" "$target"; then
+      continue
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+      log "  $name/scripts: $base (план)"
+    else
+      cp -p "$f" "$target"
+      log "  $name/scripts: $base"
+    fi
+    n=$((n + 1))
+  done
+  if [ "$n" -gt 0 ]; then
+    changed=1
+  fi
+done
+
 git add -A agents/*/state 2>/dev/null || true
 if git diff --cached --quiet; then
   log "изменений нет — коммит не нужен"
