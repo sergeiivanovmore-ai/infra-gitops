@@ -71,7 +71,7 @@ agent_running() {
 
 # --- compose_changed / compose_stamp_save: пересоздавать только по делу -------
 # Метка хранится рядом с compose, в файле .deploy.stamp. Нет метки — считаем,
-# что compose изменился: лишнее пересоздание один раз безопаснее повторного.
+# что compose изменился: лишнее пересоздание один раз безопаснее пропуска.
 compose_changed() {
   local dir="$1" cur old
   cur=$(md5sum "$dir/docker-compose.yml" 2>/dev/null | cut -d' ' -f1)
@@ -211,7 +211,7 @@ else
 fi
 
 # ── Очистка устаревшего session cache DSH ──────────────────────
-# В session_projcache могут храниться cwd с хостовыми путями вроде
+# В session_projcache могут храниться cwd с хост-путями вроде
 # /opt/docker, которых нет внутри контейнера. При старте DSH
 # восстанавливает последнюю сессию и падает на realpath('/opt/docker'):
 #   [dsh-carrot-on-a-stick] workspace attach failed:
@@ -473,7 +473,7 @@ mkdir -p /opt/docker/reverse-proxy/conf.d
 cp -f "$REPO_DIR/reverse-proxy/conf.d/"*.conf /opt/docker/reverse-proxy/conf.d/
 echo "  copied: reverse-proxy/conf.d/*.conf -> /opt/docker/reverse-proxy/conf.d/"
 
-# ── Сверка conf.d с репо: файлов, которых нет в репозитории, уводим в бэкап ──
+# ── Сверка conf.d с репо: файлы, которых нет в репозитории, уводим в бэкап ──
 # Репо — единственный источник истины: «удалил из репо» действительно означает удалено.
 CONF_DIR="/opt/docker/reverse-proxy/conf.d"
 CONF_BACKUP="/opt/docker/backups/reverse-proxy-conf"
