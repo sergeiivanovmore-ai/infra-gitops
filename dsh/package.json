@@ -3,9 +3,9 @@
   "private": true,
   "dependencies": {
     "@deepseek-ai/node-addon-landlock-run": "^0.1.1",
-    "@deepseek-ai/dsh-mcp-client": "0.0.1-rc.1",
+    "@deepseek-ai/dsh-mcp-client": "0.2.1-rc.2",
     "@stardustlc/dsh-docker": "^0.3.4",
-    "dsh-carrot-on-a-stick": "file:../../plugins/dsh-carrot",
+    "dsh-rice-on-a-stick": "0.2.0-rc.1",
     "dsh-github-mcp": "^0.2.0"
   },
   "dsh": {
@@ -13,9 +13,9 @@
       "bundles": [
         "@deepseek-ai/dsh-base",
         "@deepseek-ai/dsh-web-app",
-        "dsh-carrot-on-a-stick",
         "@stardustlc/dsh-docker",
-        "dsh-github-mcp"
+        "dsh-github-mcp",
+        "dsh-rice-on-a-stick"
       ],
       "patchReload": "live"
     }
