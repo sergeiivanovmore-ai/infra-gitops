@@ -9,8 +9,14 @@
 # Секрет здесь — только плейсхолдер. Значение DSH_MCP_TOKEN лежит в
 # /opt/docker/hermes-sysadmin/data/.env и в репозиторий не попадает.
 # Имя сервера у этого агента — dsh (не dsh-carrot): доступ намеренно узкий
-# (trust: full плюс единственный инструмент agent_run). Переименовывать не нужно,
-# это не алиас, а другое по смыслу подключение.
+# (trust: full плюс перечисленные ниже инструменты моста). Переименовывать не
+# нужно, это не алиас, а другое по смыслу подключение.
+#
+# Список инструментов рассчитан на мост dsh-rice-on-a-stick 0.2.x: имени
+# agent_run там больше нет, запуск сессии выражается парой session_create +
+# session_prompt, очередь — session_submit/session_poll/session_result.
+# При смене линии моста список проверять заново: несуществующие имена молча
+# отсекаются фильтром, и агент остаётся вообще без инструментов моста.
 
 mcp_servers:
   dsh:
@@ -22,4 +28,14 @@ mcp_servers:
       Authorization: "Bearer ${DSH_MCP_TOKEN}"
     tools:
       include:
-        - agent_run
+        - session_create
+        - session_prompt
+        - session_submit
+        - session_poll
+        - session_result
+        - session_cancel
+        - session_list
+        - session_history
+        - dsh_status
+        - approval_list
+        - approval_answer
