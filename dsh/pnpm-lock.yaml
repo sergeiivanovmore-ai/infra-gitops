@@ -8,17 +8,49 @@ importers:
 
   .:
     dependencies:
+      '@deepseek-ai/dsh-mcp-client':
+        specifier: 0.2.1-rc.2
+        version: 0.2.1-rc.2
       '@deepseek-ai/node-addon-landlock-run':
         specifier: ^0.1.1
         version: 0.1.1
       '@stardustlc/dsh-docker':
         specifier: ^0.3.4
         version: 0.3.4
-      dsh-carrot-on-a-stick:
-        specifier: file:../../plugins/dsh-carrot
-        version: file:../../plugins/dsh-carrot
+      dsh-github-mcp:
+        specifier: ^0.2.0
+        version: 0.2.0
+      dsh-rice-on-a-stick:
+        specifier: 0.2.0-rc.1
+        version: 0.2.0-rc.1(@deepseek-ai/schemastery@3.18.5)
 
 packages:
+
+  '@deepseek-ai/cosmokit@1.8.6':
+    resolution: {integrity: sha512-ZSD/fN52L498LBIOYwjIOlaLv5veY6ZEwI2yzvZUKQtctn0QAPqu8tKdJ+OF5+Tv6NBq1U+wJWH+QI6OGy5EvQ==}
+
+  '@deepseek-ai/dsh-mcp-client@0.2.1-rc.2':
+    resolution: {integrity: sha512-H5nwrx+krm9nBYKC176bB08Z0Z/+vAuQg0yv9cMpaTUEDvsnM2bBTY5paVaD6Z4YPym4XMNmgoQIpn8CUlNFLw==}
+    peerDependencies:
+      '@deepseek-ai/cordis': ~4.0.5
+      '@deepseek-ai/dsh-attachment': 0.2.1-rc.2
+      '@deepseek-ai/dsh-llm': 0.2.1-rc.2
+      '@deepseek-ai/dsh-mcp-resources': 0.2.1-rc.2
+      '@deepseek-ai/dsh-scope': 0.2.1-rc.2
+      '@deepseek-ai/dsh-subprocess': 0.2.1-rc.2
+      '@deepseek-ai/dsh-system-prompt': 0.2.1-rc.2
+      '@deepseek-ai/dsh-timeout': 0.2.1-rc.2
+      '@deepseek-ai/dsh-tools': 0.2.1-rc.2
+    peerDependenciesMeta:
+      '@deepseek-ai/dsh-mcp-resources':
+        optional: true
+      '@deepseek-ai/dsh-system-prompt':
+        optional: true
+
+  '@deepseek-ai/dsh-util-values@0.2.1-rc.2':
+    resolution: {integrity: sha512-mgnByPadOgZtoBxbwMI184li494O6sNn66/NvdqN0RIrzAJmFGpFxpjFkQtQN/yetwWhlx7Ic17+6p7eKl8DNg==}
+    peerDependencies:
+      '@deepseek-ai/cordis': ~4.0.5
 
   '@deepseek-ai/node-addon-landlock-run-linux-arm64@0.1.1':
     resolution: {integrity: sha512-lYY2RbcPW4rGRM5hVJbrXlvLqyBxeJBjBqvt+QTHTU+GtfUVVjTODKa4e3CRwMQoCEpOjoARdQBHbN7HvE72WQ==}
@@ -36,20 +68,35 @@ packages:
     resolution: {integrity: sha512-aHGhlQJEutfobKM/4K59SERbT7RmQdD2oMKzD8Bne/Ps7TeT8AweCN+dpdfuxQhMNbFcJMymrgPnID0WYQ30Tw==}
     engines: {node: '>=20'}
 
-  '@hono/node-server@2.1.3':
-    resolution: {integrity: sha512-TA//nWMqPhbfdfneACk6t5a9eqbS9lABEPyKn0/xZTah3H3U2XaVg85rJFl0/Fyit0I552YDHgXGVSf3GwqbUw==}
+  '@deepseek-ai/schemastery@3.18.5':
+    resolution: {integrity: sha512-Mnobvqf9rHsZYv4g5edj5ddxS1oF1kIdSlz0DunUgnY3LWG5F26MqvH3YOOsSaodCgyzJ16OMN9O99/s5Crtdw==}
+
+  '@hono/node-server@2.1.5':
+    resolution: {integrity: sha512-MgP/I06GdvsilDspMk/qmRzpk8LOUStP6jFAbSRi40W09DhoyUn+Mj7eyKICPqeYKybOjVFLVIAQzvu1bfIa7Q==}
     engines: {node: '>=20'}
     peerDependencies:
-      hono: ^4
+      hono: ^4 || ^5.0.0-0
 
-  '@modelcontextprotocol/sdk@1.32.0':
-    resolution: {integrity: sha512-8BviX/hK4Gd2eL1KdTwm0gfl4d3wdoErW0Jd00h6nomUAtk6IJk5vwQJc6kfWtJTzN5OEV/lgIiJKI8fiDGAlA==}
+  '@modelcontextprotocol/client@2.2.0':
+    resolution: {integrity: sha512-LxCou/CSYQ6dwEnjhLZY0KnEuc8V4UJ3IEQCl/uR2yHobSQIEdJKUlKLRYRF5i5FqRGHy1eK7une3aAWDHLtig==}
+    engines: {node: '>=20'}
+
+  '@modelcontextprotocol/core@2.2.0':
+    resolution: {integrity: sha512-iLhmprRmWI8EcosOA3wVvww22z02NkgqhV4fBH6f/odQBsi7xnJc0HGmi21yWO+/iKw2yzqVE127Zhna5/+JXw==}
+    engines: {node: '>=20'}
+
+  '@modelcontextprotocol/sdk@1.32.2':
+    resolution: {integrity: sha512-SWsVtH/0vULSQStoZ6xxH2K09Li8fXYTMC64ZeogCdpZ3XSi1eCPOByV1OpuJxuI3OcmHhosDWYyii07tpPsLw==}
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
+      zod: ^3.25 || ^4.0
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
+
+  '@standard-schema/spec@1.1.0':
+    resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
   '@stardustlc/dsh-docker@0.3.4':
     resolution: {integrity: sha512-qJcKOBSgZINmJLugMFo3yMXsYWi/oMtKWnUQe+YHqjfiU1qnUe1j9sOiO3RgiZtGOqPAXuDnRfJphWK8M9NjwQ==}
@@ -61,12 +108,17 @@ packages:
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
+    peerDependencies:
+      ajv: ^8.0.0
+    peerDependenciesMeta:
+      ajv:
+        optional: true
 
   ajv@8.20.0:
     resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
 
-  body-parser@2.3.0:
-    resolution: {integrity: sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw==}
+  body-parser@2.4.0:
+    resolution: {integrity: sha512-Ifk1KcLrxaGt1occQagQNFNNOqRt1LFuehEnHHzB8Z6cRgIxRU1TBaiIsUiCdA+gy5PL7Y1IX31DNKkRmxtXjQ==}
     engines: {node: '>=18'}
 
   bytes@3.1.2:
@@ -81,8 +133,8 @@ packages:
     resolution: {integrity: sha512-+ys997U96po4Kx/ABpBCqhA9EuxJaQWDQg7295H4hBphv3IZg0boBKuwYpt4YXp6MZ5AmZQnU/tyMTlRpaSejg==}
     engines: {node: '>= 0.4'}
 
-  content-disposition@1.1.0:
-    resolution: {integrity: sha512-5jRCH9Z/+DRP7rkvY83B+yGIGX96OYdJmzngqnw2SBSxqCFPd0w2km3s5iawpGX8krnwSGmF0FW5Nhr0Hfai3g==}
+  content-disposition@2.0.1:
+    resolution: {integrity: sha512-e+H0ZXHSWYrENhQzw1LPuP4oF5MzVKmDU6d3hxlvaPEYLLg62MxtQNPRx4SYSuYJSBUgnQIG4HIN2tEtNv7Dog==}
     engines: {node: '>=18'}
 
   content-type@1.0.5:
@@ -102,7 +154,7 @@ packages:
     engines: {node: '>= 0.6'}
 
   cors@2.8.6:
-    resolution: {integrity: sha512-tJtZBBHA6vjIAaF6EnIaq6laBBP9aq/Y3ouVJjEfoHbRBcHBAHYcMh/w8LDrk2PvIMMq8gmopa5D4V8RmbrxGw==}
+    resolution: {integrity: sha512-tJtZBBHA6vjIAaF6EnIaq6laBBP9aq/Y3ouVjJEfoHbRBcHBAHYcMh/w8LDrk2PvIMMq8gmopa5D4V8RmbrxGw==}
     engines: {node: '>= 0.10'}
 
   cross-spawn@7.0.6:
@@ -122,9 +174,21 @@ packages:
     resolution: {integrity: sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==}
     engines: {node: '>= 0.8'}
 
-  dsh-carrot-on-a-stick@file:../../plugins/dsh-carrot:
-    resolution: {directory: ../../plugins/dsh-carrot, type: directory}
-    engines: {node: '>=18'}
+  dsh-github-mcp-hint@0.2.0:
+    resolution: {integrity: sha512-04liMkPwiEBDWTMG9OmGCY+olTFwAhRBT1yaQN3N8TkY0mOiJwzHPUbKEloR0KiPAubf71SvL5Fi0t6EC8uy0g==}
+    peerDependencies:
+      '@deepseek-ai/cordis': ^4.0.2
+
+  dsh-github-mcp@0.2.0:
+    resolution: {integrity: sha512-en4Rg31omtamIeNURlrulcMD66qTLNxWHp5fLKbTbcN0igbZqFztQgjLZiURYHRRBHjZf1q96IKkkjqme9D29g==}
+    peerDependencies:
+      '@deepseek-ai/cordis': ^4.0.2
+
+  dsh-rice-on-a-stick@0.2.0-rc.1:
+    resolution: {integrity: sha512-WvJMVhabV7cuK4p5B6lu4WPUPbq55Zpb039pXB0TL5bKWK2NCGK1S34u+21mkHpL5fxNw44IpDj5hEutlGFjZA==}
+    engines: {dsh: '>=0.2.1-rc.2', node: '>=18'}
+    peerDependencies:
+      '@deepseek-ai/schemastery': ~3.18.5
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -164,21 +228,21 @@ packages:
     resolution: {integrity: sha512-CRT1WTyuQoD771GW56XEZFQ/ZoSfWid1alKGDYMmkt2yl8UXrVR4pspqWNEcqKvVIzg6PAltWjxcSSPrboA4iA==}
     engines: {node: '>=18.0.0'}
 
-  express-rate-limit@8.7.0:
-    resolution: {integrity: sha512-hOwV7WOxXfjRpAM1DSJWZDXx3GhplwD8IfwuwvogD8i1Qnkgosw/H45s4ZnFAUHDAhPjlY9hLBvJhKmGMyY26g==}
+  express-rate-limit@8.7.1:
+    resolution: {integrity: sha512-2FXbqkygil3mZiXzEtM0IjE/UBmBNot0J1GEVrJT4JbrvwOSoEtqtO+wHbiMQELWe1eNvHoYRg2dkjOid+6JkA==}
     engines: {node: '>= 16'}
     peerDependencies:
       express: '>= 4.11'
 
-  express@5.2.1:
-    resolution: {integrity: sha512-hIS4idWWai69NezIdRt2xFVofaF4j+6INOpJlVOLDO8zXGpUVEVzIYk12UUi2JzjEzWL3IOAxcTubgz9Po0yXw==}
+  express@5.3.0:
+    resolution: {integrity: sha512-qCqy1xSoaugxOD4IVHb1ZWdkvCF2W3aE2okKouWj8VwJ+ztskSiXoBnCSJqfKT+cVPJhuJqe9YLbY425+Zh00g==}
     engines: {node: '>= 18'}
 
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
 
-  fast-uri@3.1.8:
-    resolution: {integrity: sha512-GZMtZUTNRpOVIECoXwLNZS5xUGE+mVNbTB8h/7Rwh2TFWcBQiPzTgyZi05BF9UMZKkLJv8XBRJTlU7zg8+ZfMg==}
+  fast-uri@3.1.9:
+    resolution: {integrity: sha512-hS/0Wt3Ya043oKXs0sIxrMpKQITXhMLIrVAKKXi4gozGC9v7YRWVnXIZzjNPTO02M9BdxLCWqK1yRXgNziVyJQ==}
 
   finalhandler@2.1.1:
     resolution: {integrity: sha512-S8KoZgRZN+a5rNwqTxlZZePjT/4cnm0ROV70LedRHZ0p8u9fRID0hJUZQpkKLzro8LfmC8sx23bY6tVNxv8pQA==}
@@ -215,8 +279,8 @@ packages:
     resolution: {integrity: sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==}
     engines: {node: '>= 0.4'}
 
-  hono@4.13.13:
-    resolution: {integrity: sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==}
+  hono@4.13.14:
+    resolution: {integrity: sha512-yhRLQ21U6qa9Hsu2N7Qcbh8tE+WKEcoErjIo56LeSGiGXGp9sA7UpE86Ui9uexb61KakiGwuHMn2QdV7w6i6kQ==}
     engines: {node: '>=16.9.0'}
 
   http-errors@2.0.1:
@@ -230,8 +294,8 @@ packages:
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
 
-  ip-address@10.7.3:
-    resolution: {integrity: sha512-A1kdq/tSb5QjvKvAMgIoEvDBIgL7qaqVP/jkvSwYYRZ9iEzvPpopxp2wQfu3SuZRHtpHNxMn8Fs0bS+gf5Xmwg==}
+  ip-address@10.7.5:
+    resolution: {integrity: sha512-t2v0rkILYv9WXmSL7TpAaU3HXgaFYOPUcH3QHgwQ++gpJuH3bqyMy4Fvt/DJCTKwzH3Cf+bAp5W/mFL39KPLzA==}
     engines: {node: '>= 12'}
 
   ipaddr.js@1.9.1:
@@ -288,8 +352,8 @@ packages:
     resolution: {integrity: sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew==}
     engines: {node: '>= 0.4'}
 
-  on-finished@2.4.1:
-    resolution: {integrity: sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==}
+  on-finished@2.4.2:
+    resolution: {integrity: sha512-ATWUv387i+nLD49EiDoOft5scf32Vsdz3ktrQJG9bi7jRFmaXTssvyvj1EmeKVVgvesbqUtvQQvaS2TpTukAZQ==}
     engines: {node: '>= 0.8'}
 
   once@1.4.0:
@@ -314,8 +378,8 @@ packages:
     resolution: {integrity: sha512-5nnx0yGyVUcY6t9RnWcARWtwT9F1D8O9rt08htPvnd49W1IgZtmLkhu9WfMzQj1cFxjHIO6connUNVW5k7AVyQ==}
     engines: {node: '>= 0.10'}
 
-  qs@6.16.0:
-    resolution: {integrity: sha512-h6fhOIaRrID2CbEY2fqs+7t+UXZo+MLAnU5gRIq85uFtdiUPCdsApMlHhXogKVM4HM2DVbIjGNTTYH2OcmP1vA==}
+  qs@6.16.1:
+    resolution: {integrity: sha512-5Px6J7rfHBAGUhNQ3es4YzcOdBBw0SDcVtThJml4RdnKw4tKs2epA0kPZ+K8X+WiHktT93RHVcQ/3ym5aTCgtg==}
     engines: {node: '>=0.6'}
 
   range-parser@1.3.0:
@@ -410,6 +474,16 @@ packages:
 
 snapshots:
 
+  '@deepseek-ai/cosmokit@1.8.6': {}
+
+  '@deepseek-ai/dsh-mcp-client@0.2.1-rc.2':
+    dependencies:
+      '@deepseek-ai/dsh-util-values': 0.2.1-rc.2
+      '@deepseek-ai/schemastery': 3.18.5
+      '@modelcontextprotocol/client': 2.2.0
+
+  '@deepseek-ai/dsh-util-values@0.2.1-rc.2': {}
+
   '@deepseek-ai/node-addon-landlock-run-linux-arm64@0.1.1':
     optional: true
 
@@ -421,13 +495,32 @@ snapshots:
       '@deepseek-ai/node-addon-landlock-run-linux-arm64': 0.1.1
       '@deepseek-ai/node-addon-landlock-run-linux-x64': 0.1.1
 
-  '@hono/node-server@2.1.3(hono@4.13.13)':
+  '@deepseek-ai/schemastery@3.18.5':
     dependencies:
-      hono: 4.13.13
+      '@deepseek-ai/cosmokit': 1.8.6
+      '@standard-schema/spec': 1.1.0
 
-  '@modelcontextprotocol/sdk@1.32.0':
+  '@hono/node-server@2.1.5(hono@4.13.14)':
     dependencies:
-      '@hono/node-server': 2.1.3(hono@4.13.13)
+      hono: 4.13.14
+
+  '@modelcontextprotocol/client@2.2.0':
+    dependencies:
+      '@modelcontextprotocol/core': 2.2.0
+      cross-spawn: 7.0.6
+      eventsource: 3.0.7
+      eventsource-parser: 3.1.1
+      jose: 6.2.12
+      pkce-challenge: 5.0.1
+      zod: 4.6.5
+
+  '@modelcontextprotocol/core@2.2.0':
+    dependencies:
+      zod: 4.6.5
+
+  '@modelcontextprotocol/sdk@1.32.2':
+    dependencies:
+      '@hono/node-server': 2.1.5(hono@4.13.14)
       ajv: 8.20.0
       ajv-formats: 3.0.1
       content-type: 1.0.5
@@ -435,9 +528,9 @@ snapshots:
       cross-spawn: 7.0.6
       eventsource: 3.0.7
       eventsource-parser: 3.1.1
-      express: 5.2.1
-      express-rate-limit: 8.7.0(express@5.2.1)
-      hono: 4.13.13
+      express: 5.3.0
+      express-rate-limit: 8.7.1(express@5.3.0)
+      hono: 4.13.14
       jose: 6.2.12
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -446,6 +539,8 @@ snapshots:
       zod-to-json-schema: 3.25.2(zod@4.6.5)
     transitivePeerDependencies:
       - supports-color
+
+  '@standard-schema/spec@1.1.0': {}
 
   '@stardustlc/dsh-docker@0.3.4': {}
 
@@ -461,19 +556,19 @@ snapshots:
   ajv@8.20.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.8
+      fast-uri: 3.1.9
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
-  body-parser@2.3.0:
+  body-parser@2.4.0:
     dependencies:
       bytes: 3.1.2
       content-type: 2.1.0
       debug: 4.4.3
       http-errors: 2.0.1
       iconv-lite: 0.7.3
-      on-finished: 2.4.1
-      qs: 6.16.0
+      on-finished: 2.4.2
+      qs: 6.16.1
       raw-body: 3.0.2
       type-is: 2.1.0
     transitivePeerDependencies:
@@ -491,7 +586,7 @@ snapshots:
       call-bind-apply-helpers: 1.0.2
       get-intrinsic: 1.3.0
 
-  content-disposition@1.1.0: {}
+  content-disposition@2.0.1: {}
 
   content-type@1.0.5: {}
 
@@ -518,9 +613,16 @@ snapshots:
 
   depd@2.0.0: {}
 
-  dsh-carrot-on-a-stick@file:../../plugins/dsh-carrot:
+  dsh-github-mcp-hint@0.2.0: {}
+
+  dsh-github-mcp@0.2.0:
     dependencies:
-      '@modelcontextprotocol/sdk': 1.32.0
+      dsh-github-mcp-hint: 0.2.0
+
+  dsh-rice-on-a-stick@0.2.0-rc.1(@deepseek-ai/schemastery@3.18.5):
+    dependencies:
+      '@deepseek-ai/schemastery': 3.18.5
+      '@modelcontextprotocol/sdk': 1.32.2
       zod: 4.6.5
     transitivePeerDependencies:
       - '@cfworker/json-schema'
@@ -554,20 +656,20 @@ snapshots:
     dependencies:
       eventsource-parser: 3.1.1
 
-  express-rate-limit@8.7.0(express@5.2.1):
+  express-rate-limit@8.7.1(express@5.3.0):
     dependencies:
       debug: 4.4.3
-      express: 5.2.1
-      ip-address: 10.7.3
+      express: 5.3.0
+      ip-address: 10.7.5
     transitivePeerDependencies:
       - supports-color
 
-  express@5.2.1:
+  express@5.3.0:
     dependencies:
       accepts: 2.0.0
-      body-parser: 2.3.0
-      content-disposition: 1.1.0
-      content-type: 1.0.5
+      body-parser: 2.4.0
+      content-disposition: 2.0.1
+      content-type: 2.1.0
       cookie: 0.7.2
       cookie-signature: 1.2.2
       debug: 4.4.3
@@ -580,11 +682,11 @@ snapshots:
       http-errors: 2.0.1
       merge-descriptors: 2.0.0
       mime-types: 3.0.2
-      on-finished: 2.4.1
+      on-finished: 2.4.2
       once: 1.4.0
       parseurl: 1.3.3
       proxy-addr: 2.0.8
-      qs: 6.16.0
+      qs: 6.16.1
       range-parser: 1.3.0
       router: 2.2.0
       send: 1.2.1
@@ -597,14 +699,14 @@ snapshots:
 
   fast-deep-equal@3.1.3: {}
 
-  fast-uri@3.1.8: {}
+  fast-uri@3.1.9: {}
 
   finalhandler@2.1.1:
     dependencies:
       debug: 4.4.3
       encodeurl: 2.0.0
       escape-html: 1.0.3
-      on-finished: 2.4.1
+      on-finished: 2.4.2
       parseurl: 1.3.3
       statuses: 2.0.2
     transitivePeerDependencies:
@@ -642,7 +744,7 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  hono@4.13.13: {}
+  hono@4.13.14: {}
 
   http-errors@2.0.1:
     dependencies:
@@ -658,7 +760,7 @@ snapshots:
 
   inherits@2.0.4: {}
 
-  ip-address@10.7.3: {}
+  ip-address@10.7.5: {}
 
   ipaddr.js@1.9.1: {}
 
@@ -694,7 +796,7 @@ snapshots:
 
   object-inspect@1.13.4: {}
 
-  on-finished@2.4.1:
+  on-finished@2.4.2:
     dependencies:
       ee-first: 1.1.1
 
@@ -715,7 +817,7 @@ snapshots:
       forwarded: 0.2.0
       ipaddr.js: 1.9.1
 
-  qs@6.16.0:
+  qs@6.16.1:
     dependencies:
       es-define-property: 1.0.1
       side-channel: 1.1.1
@@ -753,7 +855,7 @@ snapshots:
       http-errors: 2.0.1
       mime-types: 3.0.2
       ms: 2.1.3
-      on-finished: 2.4.1
+      on-finished: 2.4.2
       range-parser: 1.3.0
       statuses: 2.0.2
     transitivePeerDependencies:
