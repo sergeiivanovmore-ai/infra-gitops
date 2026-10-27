@@ -32,6 +32,7 @@ services:
     restart: unless-stopped
     group_add:
       - "999"
+    shm_size: 512mb
     ports:
       - "127.0.0.1:${DSH_WEB_PORT:-3080}:3080"
     volumes:
@@ -43,6 +44,7 @@ services:
       - /opt/docker/backups:/host/backups:ro
     environment:
       DOCKER_HOST: tcp://docker-socket-proxy:2375
+      PLAYWRIGHT_BROWSERS_PATH: /home/dsh/workspace/.pw-browsers
     env_file:
       - .env
     networks:
