@@ -1,4 +1,4 @@
-# Id-targeted config override for the bundled dsh-carrot-on-a-stick entry.
+# Id-targeted config override for the bundled dsh-rice-on-a-stick entry.
 # Do NOT use "insert:" here — that creates a duplicate entry.
 - id: dsh-rice-on-a-stick
   name: 'dsh-rice-on-a-stick'
