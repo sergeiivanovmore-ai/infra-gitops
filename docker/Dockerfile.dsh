@@ -1,4 +1,4 @@
-FROM stefankhor/dsh-docker:latest
+FROM stefankhor/dsh-docker@sha256:10dd87d6ee9c516c9ac73e0c07b885bba8379513a3b7accc5b68da2e1d2d0fe1
 
 USER root
 
