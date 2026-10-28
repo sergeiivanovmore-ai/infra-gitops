@@ -361,6 +361,16 @@ if agent_recreate_ok hermes-orchestrator; then
   mkdir -p /opt/docker/hermes-orchestrator
   cp -f "$REPO_DIR/docker/docker-compose.orchestrator.yml" /opt/docker/hermes-orchestrator/docker-compose.yml
   echo "  copied: docker-compose.orchestrator.yml -> /opt/docker/hermes-orchestrator/"
+  ORCH_SRC="$REPO_DIR/agents/hermes-orchestrator"
+  ORCH_DST="/opt/docker/hermes-orchestrator/data"
+  if [ -d "$ORCH_DST" ]; then
+    for f in SOUL.md AGENTS.md distribution.yaml; do
+      if [ -f "$ORCH_SRC/$f" ]; then
+        cp -f "$ORCH_SRC/$f" "$ORCH_DST/$f"
+        echo "  copied: $f -> $ORCH_DST/"
+      fi
+    done
+  fi
   if [ ! -f /opt/docker/hermes-orchestrator/data/.env ]; then
     echo "  SKIP: нет /opt/docker/hermes-orchestrator/data/.env — пересоздание пропущено, чтобы агент не поднялся без переменных" >&2
   elif ! docker network inspect hermes-net >/dev/null 2>&1 || ! docker network inspect mcp-network >/dev/null 2>&1; then
