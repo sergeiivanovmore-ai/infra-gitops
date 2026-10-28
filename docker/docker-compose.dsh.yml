@@ -3,6 +3,15 @@ services:
     image: wollomatic/socket-proxy@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
     container_name: docker-socket-proxy
     restart: unless-stopped
+    # Образ работает от uid 65534 (nobody). Сокет /var/run/docker.sock принадлежит
+    # root:docker с правами 0660, поэтому без группы докера процесс не может его
+    # открыть и завершается — контейнер уходит в перезапуск, а dsh теряет доступ.
+    # 999 — GID группы докера на этом хосте, тот же, что в group_add у сервиса dsh.
+    user: "65534:999"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges
     # Разрешительная модель: что не перечислено — запрещено. Запись, exec,
     # перезапуск и остановка контейнеров не разрешаются вообще.
     command:
