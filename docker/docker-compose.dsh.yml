@@ -29,9 +29,11 @@ services:
       SP_ALLOW_GET: '(/v[0-9.]+)?/containers/(dsh|hermes-gateway|hermes-orchestrator|hermes-work|nginx-proxy|mail-relay|searxng|searxng-redis|open-websearch|design-site-nginx|jt-site-prod|jt-site-staging|3x-ui|docker-socket-proxy)/(json|logs|stats|top|archive)(\?.*)?'
       # Список контейнеров и служебные сведения самого демона.
       SP_ALLOW_GET_2: '(/v[0-9.]+)?/containers/json(\?.*)?'
-      SP_ALLOW_GET_3: '(/v[0-9.]+)?/(version|_ping|events|system/df)(\?.*)?'
-      SP_ALLOW_GET_4: '(/v[0-9.]+)?/(images|volumes|networks)(/json)?(\?.*)?'
-      SP_ALLOW_GET_5: '(/v[0-9.]+)?/(images|volumes|networks)/.+/json(\?.*)?'
+      # Логи по идентификатору контейнера (CLI разрешает имя в ID).
+      SP_ALLOW_GET_3: '^(/v[0-9.]+)?/containers/[0-9a-f]{12,64}/logs(\?.*)?$'
+      SP_ALLOW_GET_4: '(/v[0-9.]+)?/(version|_ping|events|system/df)(\?.*)?'
+      SP_ALLOW_GET_5: '(/v[0-9.]+)?/(images|volumes|networks)(/json)?(\?.*)?'
+      SP_ALLOW_GET_6: '(/v[0-9.]+)?/(images|volumes|networks)/.+/json(\?.*)?'
       # docker cp сначала спрашивает метаданные файла методом HEAD — те же имена.
       SP_ALLOW_HEAD: '(/v[0-9.]+)?/(_ping|containers/(dsh|hermes-gateway|hermes-orchestrator|hermes-work|nginx-proxy|mail-relay|searxng|searxng-redis|open-websearch|design-site-nginx|jt-site-prod|jt-site-staging|3x-ui|docker-socket-proxy)/archive)(\?.*)?'
     volumes:
