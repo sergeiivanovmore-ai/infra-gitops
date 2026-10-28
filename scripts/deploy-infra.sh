@@ -334,7 +334,8 @@ else
   DSH_STAMP="/opt/docker/dsh/.deploy.stamp"
   dsh_compose_sum=$(md5sum "$DSH_COMPOSE" 2>/dev/null | cut -d' ' -f1)
   dsh_dockerfile_sum=$(md5sum "$DSH_DOCKERFILE" 2>/dev/null | cut -d' ' -f1)
-  dsh_stamp_new="compose=$dsh_compose_sum dockerfile=$dsh_dockerfile_sum"
+  dsh_patch_sum=$(md5sum "$DSH_DST/cordis.patch.yml" 2>/dev/null | cut -d' ' -f1)
+  dsh_stamp_new="compose=$dsh_compose_sum patch=$dsh_patch_sum dockerfile=$dsh_dockerfile_sum"
   dsh_stamp_old=$(cat "$DSH_STAMP" 2>/dev/null || echo "")
   if [ -z "$dsh_stamp_old" ]; then
     printf '%s\n' "$dsh_stamp_new" > "$DSH_STAMP"
