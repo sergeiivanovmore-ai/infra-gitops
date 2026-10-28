@@ -9,6 +9,11 @@
     authEnabled: true
     authToken: !!js 'process.env.MCP_DSH_RICE_TOKEN'
     selfToolsEnabled: false
+    # Разрешена единственная модель: вызов с любой другой отклоняется явной ошибкой
+    # со списком (плагин, assertModelAllowed). Формат элемента — provider/model.
+    allowedModels:
+      - openrouter/minimax/minimax-m3.1-flash
+    allowedModelsEnabled: true
     allowedHosts:
       - "dsh"
       - "dsh:8090"
